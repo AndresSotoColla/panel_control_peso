@@ -25,7 +25,7 @@ def api_kpis_dashboard_agricola():
         res = db.session.execute(query).fetchone()
         return jsonify({
             "total_bloques_sin_forzar": int(res.total_bloques_sin_forzar or 0),
-            "area_total_sin_forzar": round(float(res.area_total_sin_forzar or 0.0), 2),
+            "area_total_sin_forzar": round(float(res.area_total_sin_forzar or 0.0), 1),
             "poblacion_total_sin_forzar": int(res.poblacion_total_sin_forzar or 0),
             "induccion_ultimo_mes": int(res.induccion_ultimo_mes or 0),
             "total_bloques_muestreados": int(res.total_bloques_muestreados or 0)
@@ -38,13 +38,15 @@ def api_kpis_dashboard_agricola():
 def api_bloques_sin_forzar():
     """
     Retorna bloques no forzados (grupo_forza IS NULL).
-    Permite filtrar por bloque o grupo_siembra, ordenado de más viejo a más nuevo.
+    Ordenado de más viejo a más nuevo por FECHA DE SIEMBRA.
+    Soporta filtro por bloque, grupo_siembra y lote (dígitos 3 y 4 del bloque).
     """
     try:
         search = request.args.get('search', '')
         grupo_siembra = request.args.get('grupo_siembra', '')
+        lote = request.args.get('lote', '')
         filtro_ultimo_mes = request.args.get('ultimo_mes', 'false').lower() == 'true'
-        limit = request.args.get('limit', 150, type=int)
+        limit = request.args.get('limit', 200, type=int)
 
         additional_filter = ""
         params = {'limit': limit}
@@ -57,6 +59,10 @@ def api_bloques_sin_forzar():
             additional_filter += " AND bd.grupo_siembra ILIKE :grupo_siembra"
             params['grupo_siembra'] = f"%{grupo_siembra}%"
 
+        if lote:
+            additional_filter += " AND SUBSTRING(bd.bloque, 3, 2) = :lote"
+            params['lote'] = lote
+
         if filtro_ultimo_mes:
             additional_filter += " AND bd.finduccion IS NOT NULL AND bd.finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND bd.finduccion <= CURRENT_DATE"
 
@@ -65,18 +71,14 @@ def api_bloques_sin_forzar():
                 bd.blocknumber, bd.descripcion, bd.desarrollo, bd.bloque, bd.poblacion, bd.area, bd.drenajes, 
                 bd.grupo_siembra, bd.fecha_siembra, bd.grupo_forza, bd.finduccion, bd.grupo_semillero, 
                 bd.mediana_fecha_cosecha, bd.kilos_cosechados, bd.frutas, bd.dias_preforza, bd.dias_posforza,
+                SUBSTRING(bd.bloque, 3, 2) AS lote,
                 CASE 
                     WHEN bd.finduccion IS NOT NULL THEN (bd.finduccion - CURRENT_DATE)
                     ELSE NULL 
-                END AS dias_hasta_induccion,
-                CASE 
-                    WHEN bd.finduccion IS NOT NULL AND bd.finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND bd.finduccion <= CURRENT_DATE THEN 'ULTIMO_MES'
-                    WHEN bd.finduccion IS NOT NULL THEN 'PROGRAMADO'
-                    ELSE 'SIN_FECHA'
-                END AS categoria_forzamiento
+                END AS dias_hasta_induccion
             FROM public.blocks_desarrollo bd
             WHERE bd.grupo_forza IS NULL AND bd.fecha_siembra > '2025-01-01' {additional_filter}
-            ORDER BY bd.finduccion ASC NULLS LAST, bd.fecha_siembra ASC
+            ORDER BY bd.fecha_siembra ASC NULLS LAST, bd.bloque ASC
             LIMIT :limit;
         """)
 
@@ -96,15 +98,15 @@ def api_bloques_sin_forzar():
 @consultor.route('/api/bloques_forzados', methods=['GET'])
 def api_bloques_forzados():
     """
-    NUEVA API: Retorna la lista de bloques que ya han sido forzados (grupo_forza IS NOT NULL).
-    Filtros: bloque, grupo_siembra, fecha_inicio, fecha_fin.
+    Retorna bloques forzados (grupo_forza IS NOT NULL).
+    Ordenado de más viejo a más nuevo por FECHA DE SIEMBRA.
+    Soporta filtro por bloque, grupo_siembra y lote.
     """
     try:
         search = request.args.get('search', '')
         grupo_siembra = request.args.get('grupo_siembra', '')
-        start_date = request.args.get('fecha_inicio', '')
-        end_date = request.args.get('fecha_fin', '')
-        limit = request.args.get('limit', 150, type=int)
+        lote = request.args.get('lote', '')
+        limit = request.args.get('limit', 200, type=int)
 
         additional_filter = ""
         params = {'limit': limit}
@@ -117,22 +119,19 @@ def api_bloques_forzados():
             additional_filter += " AND bd.grupo_siembra ILIKE :grupo_siembra"
             params['grupo_siembra'] = f"%{grupo_siembra}%"
 
-        if start_date:
-            additional_filter += " AND bd.finduccion >= :start_date"
-            params['start_date'] = start_date
-
-        if end_date:
-            additional_filter += " AND bd.finduccion <= :end_date"
-            params['end_date'] = end_date
+        if lote:
+            additional_filter += " AND SUBSTRING(bd.bloque, 3, 2) = :lote"
+            params['lote'] = lote
 
         query = text(f"""
             SELECT 
                 bd.blocknumber, bd.descripcion, bd.desarrollo, bd.bloque, bd.poblacion, bd.area, bd.drenajes, 
                 bd.grupo_siembra, bd.fecha_siembra, bd.grupo_forza, bd.finduccion, bd.grupo_semillero, 
-                bd.mediana_fecha_cosecha, bd.kilos_cosechados, bd.frutas, bd.dias_preforza, bd.dias_posforza
+                bd.mediana_fecha_cosecha, bd.kilos_cosechados, bd.frutas, bd.dias_preforza, bd.dias_posforza,
+                SUBSTRING(bd.bloque, 3, 2) AS lote
             FROM public.blocks_desarrollo bd
             WHERE bd.grupo_forza IS NOT NULL {additional_filter}
-            ORDER BY bd.finduccion DESC NULLS LAST, bd.fecha_siembra DESC
+            ORDER BY bd.fecha_siembra ASC NULLS LAST, bd.bloque ASC
             LIMIT :limit;
         """)
 
@@ -151,15 +150,23 @@ def api_bloques_forzados():
 
 @consultor.route('/api/analitica_peso_bloque/<bloque>', methods=['GET'])
 def api_analitica_peso_bloque(bloque):
-    """Calcula la evolución de peso, ganancia total y tasa de crecimiento diario (g/día) por bloque."""
+    """
+    Calcula la curva de crecimiento con EDAD EN MESES, peso promedio, desviación estándar y ganancia.
+    """
     try:
+        # Obtener fecha de siembra del bloque
+        query_siembra = text("SELECT fecha_siembra FROM public.blocks_desarrollo WHERE bloque = :bloque LIMIT 1;")
+        siembra_res = db.session.execute(query_siembra, {'bloque': bloque}).fetchone()
+        fecha_siembra = siembra_res.fecha_siembra if siembra_res else None
+
         query = text("""
             SELECT 
                 fecha, 
                 COUNT(*) as cantidad_muestras,
-                ROUND(AVG(peso)::numeric, 2) as peso_promedio,
-                MIN(peso) as peso_min,
-                MAX(peso) as peso_max
+                ROUND(AVG(peso)::numeric, 1) as peso_promedio,
+                ROUND(STDDEV_SAMP(peso)::numeric, 1) as desviacion_estandar,
+                ROUND(MIN(peso)::numeric, 1) as peso_min,
+                ROUND(MAX(peso)::numeric, 1) as peso_max
             FROM public.mu_peso_planta
             WHERE bloque = :bloque
             GROUP BY fecha
@@ -172,6 +179,7 @@ def api_analitica_peso_bloque(bloque):
             return jsonify({
                 "bloque": bloque,
                 "total_muestreos": 0,
+                "desviacion_estandar_general": 0.0,
                 "peso_inicial_g": 0.0,
                 "peso_actual_g": 0.0,
                 "ganancia_total_g": 0.0,
@@ -182,18 +190,31 @@ def api_analitica_peso_bloque(bloque):
             })
 
         df = pd.DataFrame(rows, columns=result.keys())
+        df['desviacion_estandar'] = df['desviacion_estandar'].fillna(0.0).astype(float)
         df['fecha'] = df['fecha'].astype(str)
 
-        peso_ini = float(df.iloc[0]['peso_promedio'])
-        peso_fin = float(df.iloc[-1]['peso_promedio'])
+        # Calcular edad en meses por cada fecha de muestreo
+        if fecha_siembra:
+            siembra_dt = pd.to_datetime(fecha_siembra)
+            df['edad_meses'] = df['fecha'].apply(lambda f: round(max(0.0, (pd.to_datetime(f) - siembra_dt).days / 30.4375), 1))
+        else:
+            df['edad_meses'] = 0.0
+
+        peso_ini = round(float(df.iloc[0]['peso_promedio']), 1)
+        peso_fin = round(float(df.iloc[-1]['peso_promedio']), 1)
 
         d1 = datetime.strptime(df.iloc[0]['fecha'], '%Y-%m-%d')
         d2 = datetime.strptime(df.iloc[-1]['fecha'], '%Y-%m-%d')
         dias = (d2 - d1).days
 
-        ganancia = round(peso_fin - peso_ini, 2)
-        tasa_diaria = round(ganancia / dias, 2) if dias > 0 else 0.0
-        pct_incremento = round((ganancia / peso_ini * 100), 2) if peso_ini > 0 else 0.0
+        ganancia = round(peso_fin - peso_ini, 1)
+        tasa_diaria = round(ganancia / dias, 1) if dias > 0 else 0.0
+        pct_incremento = round((ganancia / peso_ini * 100), 1) if peso_ini > 0 else 0.0
+
+        # Desviación estándar general de todos los registros de pesaje del bloque
+        query_std_gen = text("SELECT ROUND(STDDEV_SAMP(peso)::numeric, 1) as std_gen FROM public.mu_peso_planta WHERE bloque = :bloque;")
+        std_gen_res = db.session.execute(query_std_gen, {'bloque': bloque}).fetchone()
+        std_general = float(std_gen_res.std_gen or 0.0) if std_gen_res else 0.0
 
         if tasa_diaria > 5.0:
             tendencia = "CRECIENDO_ACELERADO"
@@ -210,6 +231,7 @@ def api_analitica_peso_bloque(bloque):
             "fecha_primer_muestreo": df.iloc[0]['fecha'],
             "fecha_ultimo_muestreo": df.iloc[-1]['fecha'],
             "dias_monitoreados": dias,
+            "desviacion_estandar_general": std_general,
             "peso_inicial_g": peso_ini,
             "peso_actual_g": peso_fin,
             "ganancia_total_g": ganancia,
@@ -224,7 +246,10 @@ def api_analitica_peso_bloque(bloque):
 
 @consultor.route('/api/fitosanitario_bloque/<bloque>', methods=['GET'])
 def api_fitosanitario_bloque(bloque):
-    """Retorna la incidencia de Fusarium y reporte de plagas por bloque."""
+    """
+    Retorna la incidencia de Fusarium y reporte de plagas en PORCENTAJE (%).
+    (Sistema radicular eliminado según especificación).
+    """
     try:
         query = text("""
             SELECT 
@@ -247,23 +272,15 @@ def api_fitosanitario_bloque(bloque):
                 "total_plantas_muestreadas": 0,
                 "casos_fusarium": 0,
                 "porcentaje_fusarium": 0.0,
-                "plagas": {},
-                "sistemas_radiculares": []
+                "plagas": {}
             })
 
         total = int(res.total_plantas_muestreadas or 0)
         casos_fusarium = int(res.casos_fusarium or 0)
-        pct_fusarium = round((casos_fusarium / total) * 100, 2)
+        pct_fusarium = round((casos_fusarium / total) * 100, 1)
 
-        query_root = text("""
-            SELECT tipo_sistema_radicular_id, COUNT(*) as cantidad
-            FROM public.mu_peso_planta
-            WHERE bloque = :bloque
-            GROUP BY tipo_sistema_radicular_id
-            ORDER BY cantidad DESC;
-        """)
-        root_res = db.session.execute(query_root, {'bloque': bloque}).fetchall()
-        roots = [{"tipo_sistema_radicular_id": r[0], "cantidad": r[1]} for r in root_res]
+        def calc_pct(count):
+            return round((count / total) * 100, 1) if total > 0 else 0.0
 
         return jsonify({
             "bloque": bloque,
@@ -271,14 +288,13 @@ def api_fitosanitario_bloque(bloque):
             "casos_fusarium": casos_fusarium,
             "porcentaje_fusarium": pct_fusarium,
             "plagas": {
-                "sinfilido": int(res.casos_sinfilido or 0),
-                "caracol": int(res.casos_caracol or 0),
-                "babosa": int(res.casos_babosa or 0),
-                "hormiga": int(res.casos_hormiga or 0),
-                "cochinilla": int(res.casos_cochinilla or 0),
-                "gusano_cabeza_roja": int(res.casos_gusano or 0)
-            },
-            "sistemas_radiculares": roots
+                "sinfilido": {"casos": int(res.casos_sinfilido or 0), "pct": calc_pct(int(res.casos_sinfilido or 0))},
+                "caracol": {"casos": int(res.casos_caracol or 0), "pct": calc_pct(int(res.casos_caracol or 0))},
+                "babosa": {"casos": int(res.casos_babosa or 0), "pct": calc_pct(int(res.casos_babosa or 0))},
+                "hormiga": {"casos": int(res.casos_hormiga or 0), "pct": calc_pct(int(res.casos_hormiga or 0))},
+                "cochinilla": {"casos": int(res.casos_cochinilla or 0), "pct": calc_pct(int(res.casos_cochinilla or 0))},
+                "gusano_cabeza_roja": {"casos": int(res.casos_gusano or 0), "pct": calc_pct(int(res.casos_gusano or 0))}
+            }
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

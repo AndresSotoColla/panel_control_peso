@@ -21,8 +21,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.panel_control_peso.data.model.*
+import com.example.panel_control_peso.ui.components.GrowthCurveChart
 import com.example.panel_control_peso.ui.viewmodel.DashboardUiState
 import com.example.panel_control_peso.ui.viewmodel.DashboardViewModel
+import com.example.panel_control_peso.ui.viewmodel.ViewMode
+import java.util.Locale
 
 val AgroGreenDark = Color(0xFF0F172A)
 val AgroCardBg = Color(0xFF1E293B)
@@ -146,7 +149,7 @@ fun DashboardScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // KPI Header 2x2 Grid (Centered, No Emoticons, No Scroll)
+                // 2x2 Header Grid (No emoticons, no scroll)
                 KpiGridHeaderSection(kpis = state.kpis)
 
                 if (state.errorMessage != null) {
@@ -202,11 +205,11 @@ fun KpiGridHeaderSection(kpis: GlobalKpis) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             CleanKpiCard(
                 title = "Sin Forzar",
@@ -216,14 +219,14 @@ fun KpiGridHeaderSection(kpis: GlobalKpis) {
             )
             CleanKpiCard(
                 title = "Área Sin Forzar",
-                value = "${String.format("%.1f", kpis.areaTotalSinForzar / 10000)} ha",
+                value = "${format1Dec(kpis.areaTotalSinForzar / 10000)} ha",
                 modifier = Modifier.weight(1f),
                 accentColor = AgroBlue
             )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             CleanKpiCard(
                 title = "Población Total",
@@ -250,16 +253,16 @@ fun CleanKpiCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(8.dp),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
                 title,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = AgroTextMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -291,7 +294,7 @@ fun ErrorBanner(
     ) {
         Row(
             modifier = Modifier
-                .padding(10.dp)
+                .padding(8.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -311,6 +314,39 @@ fun ErrorBanner(
     }
 }
 
+@Composable
+fun ViewModeSelector(
+    selectedMode: ViewMode,
+    onModeSelected: (ViewMode) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        FilterChip(
+            selected = selectedMode == ViewMode.BLOQUE,
+            onClick = { onModeSelected(ViewMode.BLOQUE) },
+            label = { Text("Ver por Bloque", fontSize = 11.sp) },
+            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroAccent, containerColor = AgroCardBg),
+            modifier = Modifier.weight(1f)
+        )
+        FilterChip(
+            selected = selectedMode == ViewMode.GRUPO,
+            onClick = { onModeSelected(ViewMode.GRUPO) },
+            label = { Text("Ver por Grupo", fontSize = 11.sp) },
+            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroBlue, containerColor = AgroCardBg),
+            modifier = Modifier.weight(1f)
+        )
+        FilterChip(
+            selected = selectedMode == ViewMode.LOTE,
+            onClick = { onModeSelected(ViewMode.LOTE) },
+            label = { Text("Ver por Lote", fontSize = 11.sp) },
+            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFA855F7), containerColor = AgroCardBg),
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SinForzarTabContent(
@@ -318,63 +354,57 @@ fun SinForzarTabContent(
     viewModel: DashboardViewModel
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-        // Dual Search Bar: Bloque & Grupo Siembra
+        
+        // View Mode Selector: Bloque, Grupo Siembra, Lote
+        ViewModeSelector(
+            selectedMode = state.viewMode,
+            onModeSelected = { viewModel.setViewMode(it) }
+        )
+
+        // Dual Inputs with Live Auto-Suggestions
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            OutlinedTextField(
+            AutoSuggestSearchField(
                 value = state.searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("Buscar Bloque...", color = AgroTextMuted, fontSize = 12.sp) },
-                modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AgroCardBg,
-                    unfocusedContainerColor = AgroCardBg,
-                    focusedBorderColor = AgroAccent,
-                    unfocusedBorderColor = AgroCardBg,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                shape = RoundedCornerShape(10.dp),
-                singleLine = true
+                placeholder = "Buscar Bloque...",
+                suggestions = state.bloqueSuggestions,
+                onSuggestionSelected = { viewModel.onSearchQueryChanged(it) },
+                modifier = Modifier.weight(1f)
             )
-            OutlinedTextField(
-                value = state.grupoSiembraFilter,
-                onValueChange = { viewModel.onGrupoSiembraFilterChanged(it) },
-                placeholder = { Text("Grupo Siembra...", color = AgroTextMuted, fontSize = 12.sp) },
-                modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AgroCardBg,
-                    unfocusedContainerColor = AgroCardBg,
-                    focusedBorderColor = AgroAccent,
-                    unfocusedBorderColor = AgroCardBg,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                shape = RoundedCornerShape(10.dp),
-                singleLine = true
+
+            AutoSuggestSearchField(
+                value = if (state.viewMode == ViewMode.LOTE) state.loteFilter else state.grupoSiembraFilter,
+                onValueChange = {
+                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
+                    else viewModel.onGrupoSiembraFilterChanged(it)
+                },
+                placeholder = if (state.viewMode == ViewMode.LOTE) "Filtrar Lote..." else "Grupo Siembra...",
+                suggestions = if (state.viewMode == ViewMode.LOTE) state.loteSuggestions else state.grupoSiembraSuggestions,
+                onSuggestionSelected = {
+                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
+                    else viewModel.onGrupoSiembraFilterChanged(it)
+                },
+                modifier = Modifier.weight(1f)
             )
         }
 
-        // Filter chip for Inducción Último Mes
+        // Filter Chip for Inducción Último Mes
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             FilterChip(
                 selected = state.soloUltimoMes,
                 onClick = { viewModel.toggleSoloUltimoMes(!state.soloUltimoMes) },
-                label = { Text("Inducción del Último Mes", fontSize = 11.sp, color = if (state.soloUltimoMes) Color.Black else Color.White) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = AgroAccent,
-                    containerColor = AgroCardBg
-                ),
-                border = null
+                label = { Text("Inducción Último Mes", fontSize = 10.sp, color = if (state.soloUltimoMes) Color.Black else Color.White) },
+                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroAccent, containerColor = AgroCardBg)
             )
             Text(
-                "Orden: Más viejo a más nuevo",
+                "Orden: Más viejo a nuevo (Siembra)",
                 style = MaterialTheme.typography.labelSmall,
                 color = AgroTextMuted
             )
@@ -406,47 +436,45 @@ fun ForzadosTabContent(
     viewModel: DashboardViewModel
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-        // Dual Search Bar: Bloque & Grupo Siembra
+
+        // View Mode Selector: Bloque, Grupo Siembra, Lote
+        ViewModeSelector(
+            selectedMode = state.viewMode,
+            onModeSelected = { viewModel.setViewMode(it) }
+        )
+
+        // Dual Inputs with Live Auto-Suggestions
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            OutlinedTextField(
+            AutoSuggestSearchField(
                 value = state.searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("Buscar Bloque/Forza...", color = AgroTextMuted, fontSize = 12.sp) },
-                modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AgroCardBg,
-                    unfocusedContainerColor = AgroCardBg,
-                    focusedBorderColor = AgroAccent,
-                    unfocusedBorderColor = AgroCardBg,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                shape = RoundedCornerShape(10.dp),
-                singleLine = true
+                placeholder = "Buscar Bloque...",
+                suggestions = state.bloqueSuggestions,
+                onSuggestionSelected = { viewModel.onSearchQueryChanged(it) },
+                modifier = Modifier.weight(1f)
             )
-            OutlinedTextField(
-                value = state.grupoSiembraFilter,
-                onValueChange = { viewModel.onGrupoSiembraFilterChanged(it) },
-                placeholder = { Text("Grupo Siembra...", color = AgroTextMuted, fontSize = 12.sp) },
-                modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AgroCardBg,
-                    unfocusedContainerColor = AgroCardBg,
-                    focusedBorderColor = AgroAccent,
-                    unfocusedBorderColor = AgroCardBg,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                shape = RoundedCornerShape(10.dp),
-                singleLine = true
+
+            AutoSuggestSearchField(
+                value = if (state.viewMode == ViewMode.LOTE) state.loteFilter else state.grupoSiembraFilter,
+                onValueChange = {
+                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
+                    else viewModel.onGrupoSiembraFilterChanged(it)
+                },
+                placeholder = if (state.viewMode == ViewMode.LOTE) "Filtrar Lote..." else "Grupo Siembra...",
+                suggestions = if (state.viewMode == ViewMode.LOTE) state.loteSuggestions else state.grupoSiembraSuggestions,
+                onSuggestionSelected = {
+                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
+                    else viewModel.onGrupoSiembraFilterChanged(it)
+                },
+                modifier = Modifier.weight(1f)
             )
         }
 
         Text(
-            "Consulta de Grupos Forzados (${state.filteredForcedBlocks.size} registros)",
+            "Consulta de Grupos Forzados (${state.filteredForcedBlocks.size} registros) - Ordenado de más viejo a nuevo",
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
             color = AgroAccent,
             modifier = Modifier.padding(vertical = 4.dp)
@@ -471,6 +499,66 @@ fun ForzadosTabContent(
 }
 
 @Composable
+fun AutoSuggestSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    suggestions: List<String>,
+    onSuggestionSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {
+                onValueChange(it)
+                expanded = true
+            },
+            placeholder = { Text(placeholder, color = AgroTextMuted, fontSize = 11.sp) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = AgroCardBg,
+                unfocusedContainerColor = AgroCardBg,
+                focusedBorderColor = AgroAccent,
+                unfocusedBorderColor = AgroCardBg,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
+            shape = RoundedCornerShape(8.dp),
+            singleLine = true
+        )
+
+        if (expanded && suggestions.isNotEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp)
+            ) {
+                Column {
+                    suggestions.forEach { item ->
+                        Text(
+                            text = item,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onSuggestionSelected(item)
+                                    expanded = false
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun CleanBlockCardItem(
     block: UnforcedBlock,
     isSelected: Boolean,
@@ -478,24 +566,24 @@ fun CleanBlockCardItem(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
                 color = if (isSelected) AgroAccent else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(8.dp)
             )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    block.bloque,
+                    "${block.bloque} (Lote ${block.loteCalculado})",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
@@ -518,7 +606,7 @@ fun CleanBlockCardItem(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -534,7 +622,7 @@ fun CleanBlockCardItem(
                 }
                 Column {
                     Text("Área / Población", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text("${block.area ?: 0.0} m² (${block.poblacion ?: 0})", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                    Text("${format1Dec(block.area)} m² (${block.poblacion ?: 0})", style = MaterialTheme.typography.bodySmall, color = Color.White)
                 }
             }
         }
@@ -549,24 +637,24 @@ fun CleanForcedBlockCardItem(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
                 color = if (isSelected) AgroAccent else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(8.dp)
             )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    block.bloque,
+                    "${block.bloque} (Lote ${block.loteCalculado})",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
@@ -587,7 +675,7 @@ fun CleanForcedBlockCardItem(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -619,7 +707,7 @@ fun PesoTabContent(
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         BlockSelectorHeader(state = state, onSelectBlock = { viewModel.selectBlock(it) })
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (analytics == null || analytics.totalMuestreos == 0) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -632,6 +720,10 @@ fun PesoTabContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
+                    // Growth Curve Graph with Plant Age in Months
+                    GrowthCurveChart(series = analytics.serieHistorica)
+                }
+                item {
                     TrendSummaryCard(analytics = analytics)
                 }
                 item {
@@ -639,7 +731,7 @@ fun PesoTabContent(
                 }
                 item {
                     Text(
-                        "Historial de Pesajes por Fecha (${analytics.serieHistorica.size} muestreos)",
+                        "Historial de Pesajes y Desviación Estándar (${analytics.serieHistorica.size} muestreos)",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = Color.White,
                         modifier = Modifier.padding(vertical = 4.dp)
@@ -665,20 +757,20 @@ fun TrendSummaryCard(analytics: WeightAnalytics) {
 
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(trendIcon, contentDescription = null, tint = trendColor, modifier = Modifier.size(32.dp))
-            Spacer(modifier = Modifier.width(12.dp))
+            Icon(trendIcon, contentDescription = null, tint = trendColor, modifier = Modifier.size(30.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text("Tendencia de Crecimiento", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
                 Text(trendText, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
                 Text(
-                    "Tasa de ganancia diaria: ${analytics.tasaCrecimientoDiarioGDia} g/día",
+                    "Tasa ganancia: ${format1Dec(analytics.tasaCrecimientoDiarioGDia)} g/día | Desv. Estándar: σ = ${format1Dec(analytics.desviacionEstandarGeneral)} g",
                     style = MaterialTheme.typography.bodySmall,
                     color = AgroAccent
                 )
@@ -691,21 +783,21 @@ fun TrendSummaryCard(analytics: WeightAnalytics) {
 fun GrowthMetricsCard(analytics: WeightAnalytics) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 "Métricas de Ganancia de Peso",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                MetricColumn("Peso Inicial", "${analytics.pesoInicialG} g", "Primer muestreo")
-                MetricColumn("Peso Actual", "${analytics.pesoActualG} g", "Último muestreo")
-                MetricColumn("Ganancia Total", "+${analytics.gananciaTotalG} g", "${analytics.porcentajeIncremento}% increment.")
+                MetricColumn("Peso Inicial", "${format1Dec(analytics.pesoInicialG)} g", "Primer muestreo")
+                MetricColumn("Peso Actual", "${format1Dec(analytics.pesoActualG)} g", "Último muestreo")
+                MetricColumn("Ganancia Total", "+${format1Dec(analytics.gananciaTotalG)} g", "${format1Dec(analytics.porcentajeIncremento)}% inc.")
             }
         }
     }
@@ -728,20 +820,26 @@ fun WeightSeriesItem(entry: WeightSeriesEntry) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(entry.fecha, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
-                Text("${entry.cantidadMuestras} plantas muestreadas", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                Text(
+                    "Edad: ${format1Dec(entry.edadMeses)} meses (${entry.cantidadMuestras} plantas)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroAccent
+                )
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text("${entry.pesoPromedio} g", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = AgroAccent)
-                if (entry.pesoMin != null && entry.pesoMax != null) {
-                    Text("Rango: ${entry.pesoMin}g - ${entry.pesoMax}g", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                }
+                Text("${format1Dec(entry.pesoPromedio)} g", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = AgroAccent)
+                Text(
+                    "σ = ${format1Dec(entry.desviacionEstandar)} g",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AgroTextMuted
+                )
             }
         }
     }
@@ -756,12 +854,12 @@ fun FitosanitarioTabContent(
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         BlockSelectorHeader(state = state, onSelectBlock = { viewModel.selectBlock(it) })
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (phyto == null || phyto.totalPlantasMuestreadas == 0) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "Selecciona un bloque muestreado para analizar Fusarium y Plagas.",
+                    "Selecciona un bloque muestreado para analizar Fusarium y Plagas (%).",
                     color = AgroTextMuted,
                     textAlign = TextAlign.Center
                 )
@@ -772,10 +870,7 @@ fun FitosanitarioTabContent(
                     FusariumCard(phyto = phyto)
                 }
                 item {
-                    PestBreakdownCard(plagas = phyto.plagas)
-                }
-                item {
-                    RootSystemCard(roots = phyto.sistemasRadiculares)
+                    PestPercentageBreakdownCard(plagas = phyto.plagas)
                 }
             }
         }
@@ -789,17 +884,17 @@ fun FusariumCard(phyto: PhytosanitaryAnalytics) {
 
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text("Incidencia de Fusarium", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
                 Text(
-                    "${phyto.porcentajeFusarium}% Fusarium",
+                    "${format1Dec(phyto.porcentajeFusarium)}% Fusarium",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = cardColor
                 )
@@ -814,19 +909,19 @@ fun FusariumCard(phyto: PhytosanitaryAnalytics) {
 }
 
 @Composable
-fun PestBreakdownCard(plagas: PestBreakdown) {
+fun PestPercentageBreakdownCard(plagas: PestBreakdown) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                "Detección de Plagas y Novedades",
+                "Detección de Plagas (% Incidencia)",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             val pestList = listOf(
                 "Sinfílido" to plagas.sinfilido,
@@ -842,9 +937,9 @@ fun PestBreakdownCard(plagas: PestBreakdown) {
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    PestItem(name = pair[0].first, count = pair[0].second, modifier = Modifier.weight(1f))
+                    PestPercentageItem(name = pair[0].first, detail = pair[0].second, modifier = Modifier.weight(1f))
                     if (pair.size > 1) {
-                        PestItem(name = pair[1].first, count = pair[1].second, modifier = Modifier.weight(1f))
+                        PestPercentageItem(name = pair[1].first, detail = pair[1].second, modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -853,50 +948,19 @@ fun PestBreakdownCard(plagas: PestBreakdown) {
 }
 
 @Composable
-fun PestItem(name: String, count: Int, modifier: Modifier = Modifier) {
-    val hasPest = count > 0
+fun PestPercentageItem(name: String, detail: PestItemDetail, modifier: Modifier = Modifier) {
+    val hasPest = detail.casos > 0
     Row(
-        modifier = modifier.padding(end = 8.dp),
+        modifier = modifier.padding(end = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(name, style = MaterialTheme.typography.bodySmall, color = AgroTextMuted)
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            "$count",
+            "${detail.casos} (${format1Dec(detail.pct)}%)",
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
             color = if (hasPest) AgroDanger else Color.White
         )
-    }
-}
-
-@Composable
-fun RootSystemCard(roots: List<RootSystemEntry>) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(
-                "Sistema Radicular",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            if (roots.isEmpty()) {
-                Text("Sin registros de sistema radicular.", style = MaterialTheme.typography.bodySmall, color = AgroTextMuted)
-            } else {
-                roots.forEach { root ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(root.tipoSistemaRadicularId ?: "No especificado", style = MaterialTheme.typography.bodySmall, color = Color.White)
-                        Text("${root.cantidad} plantas", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = AgroAccent)
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -909,7 +973,7 @@ fun DetalleBloqueTabContent(
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         BlockSelectorHeader(state = state, onSelectBlock = { viewModel.selectBlock(it) })
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (summary == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -918,31 +982,36 @@ fun DetalleBloqueTabContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
+                    // Growth Curve Graph with Plant Age in Months
+                    GrowthCurveChart(series = summary.pesoAnalitica.serieHistorica)
+                }
+                item {
                     val agro = summary.agronomico
                     Card(
                         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 "Ficha Agronómica - ${summary.bloque}",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = AgroAccent
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             if (agro != null) {
+                                RowDetail("Lote (Dígitos 3 y 4)", "Lote ${agro.loteCalculado}")
                                 RowDetail("Descripción", agro.descripcion ?: "N/D")
                                 RowDetail("Desarrollo", agro.desarrollo ?: "N/D")
                                 RowDetail("Población", "${agro.poblacion ?: 0} plantas")
-                                RowDetail("Área", "${agro.area ?: 0.0} m²")
+                                RowDetail("Área", "${format1Dec(agro.area)} m²")
                                 RowDetail("Grupo Siembra", agro.grupoSiembra ?: "N/D")
                                 RowDetail("Fecha Siembra", agro.fechaSiembra ?: "N/D")
                                 RowDetail("Fin Inducción", agro.finduccion ?: "N/D")
                                 RowDetail("Grupo Forzamiento", agro.grupoForza ?: "SIN FORZAR (NULL)")
-                                RowDetail("Días Pre-Forza", "${agro.diasPreforza ?: '0'}")
-                                RowDetail("Días Pos-Forza", "${agro.diasPosforza ?: '0'}")
+                                RowDetail("Días Pre-Forza", format1Dec(agro.diasPreforza))
+                                RowDetail("Días Pos-Forza", format1Dec(agro.diasPosforza))
                             } else {
                                 Text("Sin datos agronómicos en blocks_desarrollo.", color = AgroTextMuted)
                             }
@@ -972,11 +1041,11 @@ fun BlockSelectorHeader(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -1088,6 +1157,11 @@ fun ServerUrlDialog(
         },
         containerColor = AgroGreenDark
     )
+}
+
+fun format1Dec(value: Double?): String {
+    if (value == null) return "0.0"
+    return String.format(Locale.US, "%.1f", value)
 }
 
 fun String?.isNull_or_empty(): Boolean = this == null || this.trim().isEmpty()

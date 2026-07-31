@@ -6,10 +6,10 @@ import kotlinx.coroutines.withContext
 import java.sql.Connection
 import java.sql.DriverManager
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import java.util.Properties
 import kotlin.math.round
+import kotlin.math.sqrt
 
 class DirectDbRepository {
 
@@ -52,7 +52,7 @@ class DirectDbRepository {
                 var poblacionTotal = 0L
                 if (rs1.next()) {
                     totalSinForzar = rs1.getInt("total_bloques_sin_forzar")
-                    areaTotal = rs1.getDouble("area_total_sin_forzar")
+                    areaTotal = round(rs1.getDouble("area_total_sin_forzar") * 10) / 10.0
                     poblacionTotal = rs1.getLong("poblacion_total_sin_forzar")
                 }
 
@@ -95,14 +95,15 @@ class DirectDbRepository {
         }
     }
 
-    suspend fun getUnforcedBlocks(search: String? = null, grupoSiembra: String? = null, ultimoMes: Boolean = false): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
+    suspend fun getUnforcedBlocks(search: String? = null, grupoSiembra: String? = null, lote: String? = null, ultimoMes: Boolean = false): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         try {
             getConnection().use { conn ->
                 var sql = """
                     SELECT 
                         blocknumber, descripcion, desarrollo, bloque, poblacion, area, drenajes, 
                         grupo_siembra, fecha_siembra, grupo_forza, finduccion, grupo_semillero, 
-                        mediana_fecha_cosecha, kilos_cosechados, frutas, dias_preforza, dias_posforza
+                        mediana_fecha_cosecha, kilos_cosechados, frutas, dias_preforza, dias_posforza,
+                        SUBSTRING(bloque, 3, 2) AS lote
                     FROM public.blocks_desarrollo
                     WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01'
                 """.trimIndent()
@@ -120,11 +121,16 @@ class DirectDbRepository {
                     paramList.add("%$grupoSiembra%")
                 }
 
+                if (!lote.isNull_or_empty()) {
+                    sql += " AND SUBSTRING(bloque, 3, 2) = ?"
+                    paramList.add(lote!!)
+                }
+
                 if (ultimoMes) {
                     sql += " AND finduccion IS NOT NULL AND finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND finduccion <= CURRENT_DATE"
                 }
 
-                sql += " ORDER BY finduccion ASC NULLS LAST, fecha_siembra ASC LIMIT 150;"
+                sql += " ORDER BY fecha_siembra ASC NULLS LAST, bloque ASC LIMIT 200;"
 
                 val stmt = conn.prepareStatement(sql)
                 paramList.forEachIndexed { idx, p -> stmt.setString(idx + 1, p) }
@@ -149,7 +155,7 @@ class DirectDbRepository {
                             desarrollo = rs.getString("desarrollo"),
                             bloque = rs.getString("bloque") ?: "",
                             poblacion = rs.getLong("poblacion"),
-                            area = rs.getDouble("area"),
+                            area = round(rs.getDouble("area") * 10) / 10.0,
                             drenajes = rs.getDouble("drenajes"),
                             grupoSiembra = rs.getString("grupo_siembra"),
                             fechaSiembra = rs.getDate("fecha_siembra")?.toString(),
@@ -161,6 +167,7 @@ class DirectDbRepository {
                             frutas = rs.getDouble("frutas"),
                             diasPreforza = rs.getDouble("dias_preforza"),
                             diasPosforza = rs.getDouble("dias_posforza"),
+                            lote = rs.getString("lote"),
                             diasHastaInduccion = diasHasta,
                             categoriaForzamiento = if (ultimoMes) "ULTIMO_MES" else "PROGRAMADO"
                         )
@@ -173,14 +180,15 @@ class DirectDbRepository {
         }
     }
 
-    suspend fun getForcedBlocks(search: String? = null, grupoSiembra: String? = null, startDate: String? = null, endDate: String? = null): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
+    suspend fun getForcedBlocks(search: String? = null, grupoSiembra: String? = null, lote: String? = null): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         try {
             getConnection().use { conn ->
                 var sql = """
                     SELECT 
                         blocknumber, descripcion, desarrollo, bloque, poblacion, area, drenajes, 
                         grupo_siembra, fecha_siembra, grupo_forza, finduccion, grupo_semillero, 
-                        mediana_fecha_cosecha, kilos_cosechados, frutas, dias_preforza, dias_posforza
+                        mediana_fecha_cosecha, kilos_cosechados, frutas, dias_preforza, dias_posforza,
+                        SUBSTRING(bloque, 3, 2) AS lote
                     FROM public.blocks_desarrollo
                     WHERE grupo_forza IS NOT NULL
                 """.trimIndent()
@@ -199,7 +207,12 @@ class DirectDbRepository {
                     paramList.add("%$grupoSiembra%")
                 }
 
-                sql += " ORDER BY finduccion DESC NULLS LAST, fecha_siembra DESC LIMIT 150;"
+                if (!lote.isNull_or_empty()) {
+                    sql += " AND SUBSTRING(bloque, 3, 2) = ?"
+                    paramList.add(lote!!)
+                }
+
+                sql += " ORDER BY fecha_siembra ASC NULLS LAST, bloque ASC LIMIT 200;"
 
                 val stmt = conn.prepareStatement(sql)
                 paramList.forEachIndexed { idx, p -> stmt.setString(idx + 1, p) }
@@ -215,7 +228,7 @@ class DirectDbRepository {
                             desarrollo = rs.getString("desarrollo"),
                             bloque = rs.getString("bloque") ?: "",
                             poblacion = rs.getLong("poblacion"),
-                            area = rs.getDouble("area"),
+                            area = round(rs.getDouble("area") * 10) / 10.0,
                             drenajes = rs.getDouble("drenajes"),
                             grupoSiembra = rs.getString("grupo_siembra"),
                             fechaSiembra = rs.getDate("fecha_siembra")?.toString(),
@@ -227,6 +240,7 @@ class DirectDbRepository {
                             frutas = rs.getDouble("frutas"),
                             diasPreforza = rs.getDouble("dias_preforza"),
                             diasPosforza = rs.getDouble("dias_posforza"),
+                            lote = rs.getString("lote"),
                             diasHastaInduccion = null,
                             categoriaForzamiento = "FORZADO"
                         )
@@ -242,13 +256,22 @@ class DirectDbRepository {
     suspend fun getWeightAnalytics(bloque: String): Result<WeightAnalytics> = withContext(Dispatchers.IO) {
         try {
             getConnection().use { conn ->
+                val stmtSiembra = conn.prepareStatement("SELECT fecha_siembra FROM public.blocks_desarrollo WHERE bloque = ? LIMIT 1;")
+                stmtSiembra.setString(1, bloque)
+                val rsSiembra = stmtSiembra.executeQuery()
+                var fechaSiembra: java.sql.Date? = null
+                if (rsSiembra.next()) {
+                    fechaSiembra = rsSiembra.getDate("fecha_siembra")
+                }
+
                 val stmt = conn.prepareStatement("""
                     SELECT 
                         fecha, 
                         COUNT(*) as cantidad_muestras,
-                        ROUND(AVG(peso)::numeric, 2) as peso_promedio,
-                        MIN(peso) as peso_min,
-                        MAX(peso) as peso_max
+                        ROUND(AVG(peso)::numeric, 1) as peso_promedio,
+                        ROUND(STDDEV_SAMP(peso)::numeric, 1) as desviacion_estandar,
+                        ROUND(MIN(peso)::numeric, 1) as peso_min,
+                        ROUND(MAX(peso)::numeric, 1) as peso_max
                     FROM public.mu_peso_planta
                     WHERE bloque = ?
                     GROUP BY fecha
@@ -258,14 +281,33 @@ class DirectDbRepository {
                 val rs = stmt.executeQuery()
 
                 val series = mutableListOf<WeightSeriesEntry>()
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
                 while (rs.next()) {
+                    val fechaStr = rs.getDate("fecha")?.toString() ?: ""
+                    var edadMeses = 0.0
+
+                    if (fechaSiembra != null && fechaStr.isNotEmpty()) {
+                        try {
+                            val dMuestreo = sdf.parse(fechaStr)
+                            if (dMuestreo != null) {
+                                val diffMs = dMuestreo.time - fechaSiembra.time
+                                val dias = diffMs / (1000 * 60 * 60 * 24)
+                                edadMeses = round((dias / 30.4375) * 10) / 10.0
+                                if (edadMeses < 0) edadMeses = 0.0
+                            }
+                        } catch (e: Exception) {}
+                    }
+
                     series.add(
                         WeightSeriesEntry(
-                            fecha = rs.getDate("fecha")?.toString() ?: "",
+                            fecha = fechaStr,
                             cantidadMuestras = rs.getInt("cantidad_muestras"),
-                            pesoPromedio = rs.getDouble("peso_promedio"),
-                            pesoMin = rs.getDouble("peso_min"),
-                            pesoMax = rs.getDouble("peso_max")
+                            pesoPromedio = round(rs.getDouble("peso_promedio") * 10) / 10.0,
+                            desviacionEstandar = round(rs.getDouble("desviacion_estandar") * 10) / 10.0,
+                            edadMeses = edadMeses,
+                            pesoMin = round(rs.getDouble("peso_min") * 10) / 10.0,
+                            pesoMax = round(rs.getDouble("peso_max") * 10) / 10.0
                         )
                     )
                 }
@@ -277,7 +319,6 @@ class DirectDbRepository {
                 val first = series.first()
                 val last = series.last()
 
-                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val d1 = try { sdf.parse(first.fecha) } catch (e: Exception) { null }
                 val d2 = try { sdf.parse(last.fecha) } catch (e: Exception) { null }
 
@@ -285,9 +326,14 @@ class DirectDbRepository {
                     ((d2.time - d1.time) / (1000 * 60 * 60 * 24)).toInt()
                 } else 0
 
-                val ganancia = round((last.pesoPromedio - first.pesoPromedio) * 100) / 100.0
-                val tasaDiaria = if (dias > 0) round((ganancia / dias) * 100) / 100.0 else 0.0
-                val pctIncremento = if (first.pesoPromedio > 0) round((ganancia / first.pesoPromedio * 100) * 100) / 100.0 else 0.0
+                val ganancia = round((last.pesoPromedio - first.pesoPromedio) * 10) / 10.0
+                val tasaDiaria = if (dias > 0) round((ganancia / dias) * 10) / 10.0 else 0.0
+                val pctIncremento = if (first.pesoPromedio > 0) round((ganancia / first.pesoPromedio * 100) * 10) / 10.0 else 0.0
+
+                val stmtStdGen = conn.prepareStatement("SELECT ROUND(STDDEV_SAMP(peso)::numeric, 1) as std_gen FROM public.mu_peso_planta WHERE bloque = ?;")
+                stmtStdGen.setString(1, bloque)
+                val rsStdGen = stmtStdGen.executeQuery()
+                val stdGen = if (rsStdGen.next()) round(rsStdGen.getDouble("std_gen") * 10) / 10.0 else 0.0
 
                 val tendencia = when {
                     tasaDiaria > 5.0 -> "CRECIENDO_ACELERADO"
@@ -308,6 +354,7 @@ class DirectDbRepository {
                         fechaPrimerMuestreo = first.fecha,
                         fechaUltimoMuestreo = last.fecha,
                         diasMonitoreados = dias,
+                        desviacionEstandarGeneral = stdGen,
                         pesoInicialG = first.pesoPromedio,
                         pesoActualG = last.pesoPromedio,
                         gananciaTotalG = ganancia,
@@ -348,36 +395,20 @@ class DirectDbRepository {
 
                 val total = rs.getInt("total_plantas_muestreadas")
                 val fusarium = rs.getInt("casos_fusarium")
-                val pctFusarium = round((fusarium.toDouble() / total * 100) * 100) / 100.0
+                val pctFusarium = round((fusarium.toDouble() / total * 100) * 10) / 10.0
+
+                fun calcPct(count: Int): Double {
+                    return if (total > 0) round((count.toDouble() / total * 100) * 10) / 10.0 else 0.0
+                }
 
                 val plagas = PestBreakdown(
-                    sinfilido = rs.getInt("casos_sinfilido"),
-                    caracol = rs.getInt("casos_caracol"),
-                    babosa = rs.getInt("casos_babosa"),
-                    hormiga = rs.getInt("casos_hormiga"),
-                    cochinilla = rs.getInt("casos_cochinilla"),
-                    gusanoCabezaRoja = rs.getInt("casos_gusano")
+                    sinfilido = PestItemDetail(rs.getInt("casos_sinfilido"), calcPct(rs.getInt("casos_sinfilido"))),
+                    caracol = PestItemDetail(rs.getInt("casos_caracol"), calcPct(rs.getInt("casos_caracol"))),
+                    babosa = PestItemDetail(rs.getInt("casos_babosa"), calcPct(rs.getInt("casos_babosa"))),
+                    hormiga = PestItemDetail(rs.getInt("casos_hormiga"), calcPct(rs.getInt("casos_hormiga"))),
+                    cochinilla = PestItemDetail(rs.getInt("casos_cochinilla"), calcPct(rs.getInt("casos_cochinilla"))),
+                    gusanoCabezaRoja = PestItemDetail(rs.getInt("casos_gusano"), calcPct(rs.getInt("casos_gusano")))
                 )
-
-                val stmtRoot = conn.prepareStatement("""
-                    SELECT tipo_sistema_radicular_id, COUNT(*) as cantidad
-                    FROM public.mu_peso_planta
-                    WHERE bloque = ?
-                    GROUP BY tipo_sistema_radicular_id
-                    ORDER BY cantidad DESC;
-                """.trimIndent())
-                stmtRoot.setString(1, bloque)
-                val rsRoot = stmtRoot.executeQuery()
-
-                val roots = mutableListOf<RootSystemEntry>()
-                while (rsRoot.next()) {
-                    roots.add(
-                        RootSystemEntry(
-                            tipoSistemaRadicularId = rsRoot.getString("tipo_sistema_radicular_id"),
-                            cantidad = rsRoot.getInt("cantidad")
-                        )
-                    )
-                }
 
                 Result.success(
                     PhytosanitaryAnalytics(
@@ -385,8 +416,7 @@ class DirectDbRepository {
                         totalPlantasMuestreadas = total,
                         casosFusarium = fusarium,
                         porcentajeFusarium = pctFusarium,
-                        plagas = plagas,
-                        sistemasRadiculares = roots
+                        plagas = plagas
                     )
                 )
             }
@@ -397,7 +427,7 @@ class DirectDbRepository {
 
     suspend fun getBlockSummary(bloque: String): Result<BlockSummary> = withContext(Dispatchers.IO) {
         try {
-            val unforcedRes = getUnforcedBlocks(bloque)
+            val unforcedRes = getUnforcedBlocks(search = bloque)
             val agro = unforcedRes.getOrNull()?.firstOrNull { it.bloque == bloque }
             val weight = getWeightAnalytics(bloque).getOrDefault(WeightAnalytics(bloque = bloque))
             val phyto = getPhytosanitaryAnalytics(bloque).getOrDefault(PhytosanitaryAnalytics(bloque = bloque))

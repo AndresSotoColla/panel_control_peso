@@ -11,18 +11,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+enum class ViewMode { BLOQUE, GRUPO, LOTE }
+
 data class DashboardUiState(
     val kpis: GlobalKpis = GlobalKpis(),
     val unforcedBlocks: List<UnforcedBlock> = emptyList(),
     val forcedBlocks: List<UnforcedBlock> = emptyList(),
     val filteredUnforcedBlocks: List<UnforcedBlock> = emptyList(),
     val filteredForcedBlocks: List<UnforcedBlock> = emptyList(),
+    
+    // Auto-complete coincidences / suggestions
+    val bloqueSuggestions: List<String> = emptyList(),
+    val grupoSiembraSuggestions: List<String> = emptyList(),
+    val loteSuggestions: List<String> = emptyList(),
+
     val selectedBlockSummary: BlockSummary? = null,
     val selectedWeightAnalytics: WeightAnalytics? = null,
     val selectedPhytosanitaryAnalytics: PhytosanitaryAnalytics? = null,
+    
     val selectedTab: Int = 0,
+    val viewMode: ViewMode = ViewMode.BLOQUE,
     val searchQuery: String = "",
     val grupoSiembraFilter: String = "",
+    val loteFilter: String = "",
     val soloUltimoMes: Boolean = false,
     val selectedBlockName: String = "",
     val isLoading: Boolean = false,
@@ -43,6 +54,11 @@ class DashboardViewModel(
     init {
         repository.useDirectDbMode = _uiState.value.isDirectDbMode
         loadDashboardData()
+    }
+
+    fun setViewMode(mode: ViewMode) {
+        _uiState.value = _uiState.value.copy(viewMode = mode)
+        applyFilters()
     }
 
     fun toggleConnectionMode(useDirectDb: Boolean) {
@@ -76,6 +92,7 @@ class DashboardViewModel(
             val blocksResult = repository.getUnforcedBlocks(
                 search = _uiState.value.searchQuery,
                 grupoSiembra = _uiState.value.grupoSiembraFilter,
+                lote = _uiState.value.loteFilter,
                 ultimoMes = _uiState.value.soloUltimoMes
             )
 
@@ -94,6 +111,7 @@ class DashboardViewModel(
                 isLoading = false,
                 errorMessage = errorMsg
             )
+            updateSuggestions()
             applyFilters()
 
             if (blocks.isNotEmpty() && _uiState.value.selectedBlockName.isEmpty()) {
@@ -107,7 +125,8 @@ class DashboardViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             val res = repository.getForcedBlocks(
                 search = _uiState.value.searchQuery,
-                grupoSiembra = _uiState.value.grupoSiembraFilter
+                grupoSiembra = _uiState.value.grupoSiembraFilter,
+                lote = _uiState.value.loteFilter
             )
             val forced = res.getOrDefault(emptyList())
 
@@ -115,17 +134,26 @@ class DashboardViewModel(
                 forcedBlocks = forced,
                 isLoading = false
             )
+            updateSuggestions()
             applyFilters()
         }
     }
 
     fun onSearchQueryChanged(query: String) {
         _uiState.value = _uiState.value.copy(searchQuery = query)
+        updateSuggestions()
         applyFilters()
     }
 
     fun onGrupoSiembraFilterChanged(grupo: String) {
         _uiState.value = _uiState.value.copy(grupoSiembraFilter = grupo)
+        updateSuggestions()
+        applyFilters()
+    }
+
+    fun onLoteFilterChanged(lote: String) {
+        _uiState.value = _uiState.value.copy(loteFilter = lote)
+        updateSuggestions()
         applyFilters()
     }
 
@@ -134,9 +162,36 @@ class DashboardViewModel(
         loadDashboardData()
     }
 
+    private fun updateSuggestions() {
+        val allBlocks = (_uiState.value.unforcedBlocks + _uiState.value.forcedBlocks)
+        
+        val qBlock = _uiState.value.searchQuery.lowercase().trim()
+        val qGrupo = _uiState.value.grupoSiembraFilter.lowercase().trim()
+        val qLote = _uiState.value.loteFilter.lowercase().trim()
+
+        val blockSugg = if (qBlock.isNotEmpty()) {
+            allBlocks.map { it.bloque }.distinct().filter { it.lowercase().contains(qBlock) }.take(8)
+        } else emptyList()
+
+        val grupoSugg = if (qGrupo.isNotEmpty()) {
+            allBlocks.mapNotNull { it.grupoSiembra }.distinct().filter { it.lowercase().contains(qGrupo) }.take(8)
+        } else emptyList()
+
+        val loteSugg = if (qLote.isNotEmpty()) {
+            allBlocks.map { it.loteCalculado }.distinct().filter { it.lowercase().contains(qLote) }.take(8)
+        } else emptyList()
+
+        _uiState.value = _uiState.value.copy(
+            bloqueSuggestions = blockSugg,
+            grupoSiembraSuggestions = grupoSugg,
+            loteSuggestions = loteSugg
+        )
+    }
+
     private fun applyFilters() {
         val query = _uiState.value.searchQuery.lowercase().trim()
         val grupoFilter = _uiState.value.grupoSiembraFilter.lowercase().trim()
+        val loteFilter = _uiState.value.loteFilter.lowercase().trim()
 
         val filteredUnforced = _uiState.value.unforcedBlocks.filter { block ->
             val matchesQuery = query.isEmpty() ||
@@ -146,8 +201,11 @@ class DashboardViewModel(
             val matchesGrupo = grupoFilter.isEmpty() ||
                     (block.grupoSiembra?.lowercase()?.contains(grupoFilter) == true)
 
-            matchesQuery && matchesGrupo
-        }
+            val matchesLote = loteFilter.isEmpty() ||
+                    block.loteCalculado.lowercase().contains(loteFilter)
+
+            matchesQuery && matchesGrupo && matchesLote
+        }.sortedBy { it.fechaSiembra ?: "9999-99-99" } // Oldest to newest by planting date
 
         val filteredForced = _uiState.value.forcedBlocks.filter { block ->
             val matchesQuery = query.isEmpty() ||
@@ -158,8 +216,11 @@ class DashboardViewModel(
             val matchesGrupo = grupoFilter.isEmpty() ||
                     (block.grupoSiembra?.lowercase()?.contains(grupoFilter) == true)
 
-            matchesQuery && matchesGrupo
-        }
+            val matchesLote = loteFilter.isEmpty() ||
+                    block.loteCalculado.lowercase().contains(loteFilter)
+
+            matchesQuery && matchesGrupo && matchesLote
+        }.sortedBy { it.fechaSiembra ?: "9999-99-99" } // Oldest to newest by planting date
 
         _uiState.value = _uiState.value.copy(
             filteredUnforcedBlocks = filteredUnforced,

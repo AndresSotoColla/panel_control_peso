@@ -41,10 +41,11 @@ class DashboardRepository(
     suspend fun getUnforcedBlocks(
         search: String? = null,
         grupoSiembra: String? = null,
+        lote: String? = null,
         ultimoMes: Boolean = false
     ): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            val res = directDbRepository.getUnforcedBlocks(search, grupoSiembra, ultimoMes)
+            val res = directDbRepository.getUnforcedBlocks(search, grupoSiembra, lote, ultimoMes)
             if (res.isSuccess) {
                 res.getOrNull()?.let { cacheManager?.saveUnforcedBlocks(it) }
                 return@withContext res
@@ -55,6 +56,7 @@ class DashboardRepository(
             val res = RetrofitClient.apiService.getUnforcedBlocks(
                 search = search,
                 grupoSiembra = grupoSiembra,
+                lote = lote,
                 ultimoMes = if (ultimoMes) true else null
             )
             cacheManager?.saveUnforcedBlocks(res)
@@ -72,11 +74,10 @@ class DashboardRepository(
     suspend fun getForcedBlocks(
         search: String? = null,
         grupoSiembra: String? = null,
-        startDate: String? = null,
-        endDate: String? = null
+        lote: String? = null
     ): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            val res = directDbRepository.getForcedBlocks(search, grupoSiembra, startDate, endDate)
+            val res = directDbRepository.getForcedBlocks(search, grupoSiembra, lote)
             if (res.isSuccess) {
                 res.getOrNull()?.let { cacheManager?.saveForcedBlocks(it) }
                 return@withContext res
@@ -87,8 +88,7 @@ class DashboardRepository(
             val res = RetrofitClient.apiService.getForcedBlocks(
                 search = search,
                 grupoSiembra = grupoSiembra,
-                fechaInicio = startDate,
-                fechaFin = endDate
+                lote = lote
             )
             cacheManager?.saveForcedBlocks(res)
             Result.success(res)
