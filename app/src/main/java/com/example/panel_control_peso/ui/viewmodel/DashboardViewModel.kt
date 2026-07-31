@@ -13,12 +13,34 @@ import kotlinx.coroutines.launch
 
 enum class ViewMode { BLOQUE, GRUPO, LOTE }
 
+data class GroupSummary(
+    val name: String,
+    val totalBloques: Int,
+    val totalArea: Double,
+    val totalPoblacion: Long,
+    val blocks: List<UnforcedBlock>
+)
+
+data class LoteSummary(
+    val name: String,
+    val totalBloques: Int,
+    val totalArea: Double,
+    val totalPoblacion: Long,
+    val blocks: List<UnforcedBlock>
+)
+
 data class DashboardUiState(
     val kpis: GlobalKpis = GlobalKpis(),
     val unforcedBlocks: List<UnforcedBlock> = emptyList(),
     val forcedBlocks: List<UnforcedBlock> = emptyList(),
+    
     val filteredUnforcedBlocks: List<UnforcedBlock> = emptyList(),
     val filteredForcedBlocks: List<UnforcedBlock> = emptyList(),
+
+    val groupedBySiembraUnforced: List<GroupSummary> = emptyList(),
+    val groupedByLoteUnforced: List<LoteSummary> = emptyList(),
+    val groupedBySiembraForced: List<GroupSummary> = emptyList(),
+    val groupedByLoteForced: List<LoteSummary> = emptyList(),
     
     // Auto-complete coincidences / suggestions
     val bloqueSuggestions: List<String> = emptyList(),
@@ -36,6 +58,8 @@ data class DashboardUiState(
     val loteFilter: String = "",
     val soloUltimoMes: Boolean = false,
     val selectedBlockName: String = "",
+    val selectedGroupName: String = "",
+    val selectedLoteName: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isDirectDbMode: Boolean = false,
@@ -170,15 +194,15 @@ class DashboardViewModel(
         val qLote = _uiState.value.loteFilter.lowercase().trim()
 
         val blockSugg = if (qBlock.isNotEmpty()) {
-            allBlocks.map { it.bloque }.distinct().filter { it.lowercase().contains(qBlock) }.take(8)
+            allBlocks.map { it.bloque }.distinct().filter { it.lowercase().contains(qBlock) }.take(6)
         } else emptyList()
 
         val grupoSugg = if (qGrupo.isNotEmpty()) {
-            allBlocks.mapNotNull { it.grupoSiembra }.distinct().filter { it.lowercase().contains(qGrupo) }.take(8)
+            allBlocks.mapNotNull { it.grupoSiembra }.distinct().filter { it.lowercase().contains(qGrupo) }.take(6)
         } else emptyList()
 
         val loteSugg = if (qLote.isNotEmpty()) {
-            allBlocks.map { it.loteCalculado }.distinct().filter { it.lowercase().contains(qLote) }.take(8)
+            allBlocks.map { it.loteCalculado }.distinct().filter { it.lowercase().contains(qLote) }.take(6)
         } else emptyList()
 
         _uiState.value = _uiState.value.copy(
@@ -205,7 +229,7 @@ class DashboardViewModel(
                     block.loteCalculado.lowercase().contains(loteFilter)
 
             matchesQuery && matchesGrupo && matchesLote
-        }.sortedBy { it.fechaSiembra ?: "9999-99-99" } // Oldest to newest by planting date
+        }.sortedBy { it.fechaSiembra ?: "9999-99-99" }
 
         val filteredForced = _uiState.value.forcedBlocks.filter { block ->
             val matchesQuery = query.isEmpty() ||
@@ -220,11 +244,60 @@ class DashboardViewModel(
                     block.loteCalculado.lowercase().contains(loteFilter)
 
             matchesQuery && matchesGrupo && matchesLote
-        }.sortedBy { it.fechaSiembra ?: "9999-99-99" } // Oldest to newest by planting date
+        }.sortedBy { it.fechaSiembra ?: "9999-99-99" }
+
+        // Compute Grouping Summaries
+        val groupedSiembraUnforced = filteredUnforced.groupBy { it.grupoSiembra ?: "Sin Grupo" }
+            .map { (name, bList) ->
+                GroupSummary(
+                    name = name,
+                    totalBloques = bList.size,
+                    totalArea = bList.sumOf { it.area ?: 0.0 },
+                    totalPoblacion = bList.sumOf { it.poblacion ?: 0L },
+                    blocks = bList
+                )
+            }
+
+        val groupedLoteUnforced = filteredUnforced.groupBy { it.loteCalculado }
+            .map { (name, bList) ->
+                LoteSummary(
+                    name = "Lote $name",
+                    totalBloques = bList.size,
+                    totalArea = bList.sumOf { it.area ?: 0.0 },
+                    totalPoblacion = bList.sumOf { it.poblacion ?: 0L },
+                    blocks = bList
+                )
+            }
+
+        val groupedSiembraForced = filteredForced.groupBy { it.grupoSiembra ?: "Sin Grupo" }
+            .map { (name, bList) ->
+                GroupSummary(
+                    name = name,
+                    totalBloques = bList.size,
+                    totalArea = bList.sumOf { it.area ?: 0.0 },
+                    totalPoblacion = bList.sumOf { it.poblacion ?: 0L },
+                    blocks = bList
+                )
+            }
+
+        val groupedLoteForced = filteredForced.groupBy { it.loteCalculado }
+            .map { (name, bList) ->
+                LoteSummary(
+                    name = "Lote $name",
+                    totalBloques = bList.size,
+                    totalArea = bList.sumOf { it.area ?: 0.0 },
+                    totalPoblacion = bList.sumOf { it.poblacion ?: 0L },
+                    blocks = bList
+                )
+            }
 
         _uiState.value = _uiState.value.copy(
             filteredUnforcedBlocks = filteredUnforced,
-            filteredForcedBlocks = filteredForced
+            filteredForcedBlocks = filteredForced,
+            groupedBySiembraUnforced = groupedSiembraUnforced,
+            groupedByLoteUnforced = groupedLoteUnforced,
+            groupedBySiembraForced = groupedSiembraForced,
+            groupedByLoteForced = groupedLoteForced
         )
     }
 
@@ -245,6 +318,22 @@ class DashboardViewModel(
                 selectedPhytosanitaryAnalytics = phytoRes.getOrNull(),
                 isLoading = false
             )
+        }
+    }
+
+    fun selectGroup(groupSummary: GroupSummary) {
+        _uiState.value = _uiState.value.copy(selectedGroupName = groupSummary.name)
+        val firstBlock = groupSummary.blocks.firstOrNull()?.bloque
+        if (firstBlock != null) {
+            selectBlock(firstBlock)
+        }
+    }
+
+    fun selectLote(loteSummary: LoteSummary) {
+        _uiState.value = _uiState.value.copy(selectedLoteName = loteSummary.name)
+        val firstBlock = loteSummary.blocks.firstOrNull()?.bloque
+        if (firstBlock != null) {
+            selectBlock(firstBlock)
         }
     }
 }

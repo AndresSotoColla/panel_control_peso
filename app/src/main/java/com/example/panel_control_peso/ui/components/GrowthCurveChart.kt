@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.panel_control_peso.data.model.WeightSeriesEntry
+import java.util.Locale
 
 val ChartBg = Color(0xFF1E293B)
 val ChartLine = Color(0xFF10B981)
@@ -67,7 +68,7 @@ fun GrowthCurveChart(
                     color = Color.White
                 )
                 Text(
-                    "Eje X: Edad (meses) | Eje Y: Peso (g)",
+                    "X: Edad (meses) | Y: Peso (g)",
                     style = MaterialTheme.typography.labelSmall,
                     color = ChartText
                 )
@@ -78,21 +79,45 @@ fun GrowthCurveChart(
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(170.dp)
-                    .padding(start = 24.dp, end = 16.dp, top = 12.dp, bottom = 24.dp)
+                    .height(180.dp)
+                    .padding(start = 46.dp, end = 16.dp, top = 12.dp, bottom = 28.dp)
             ) {
                 val width = size.width
                 val height = size.height
 
-                // Draw Grid Lines
+                val textPaintY = android.graphics.Paint().apply {
+                    color = android.graphics.Color.LTGRAY
+                    textSize = 22f
+                    textAlign = android.graphics.Paint.Align.RIGHT
+                }
+
+                val textPaintX = android.graphics.Paint().apply {
+                    color = android.graphics.Color.LTGRAY
+                    textSize = 22f
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+
+                // Draw Grid Lines and Y-axis Labels
                 val gridLines = 4
+                val weightStep = (maxWeight - minWeight) / gridLines
+
                 for (i in 0..gridLines) {
                     val y = height * (1 - i.toFloat() / gridLines)
+                    val labelVal = minWeight + (weightStep * i)
+
                     drawLine(
                         color = ChartGrid,
                         start = Offset(0f, y),
                         end = Offset(width, y),
                         strokeWidth = 1f
+                    )
+
+                    // Draw Y-axis Label Value (in grams)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "${String.format(Locale.US, "%.1f", labelVal)}g",
+                        -10f,
+                        y + 8f,
+                        textPaintY
                     )
                 }
 
@@ -122,7 +147,7 @@ fun GrowthCurveChart(
                     )
                 }
 
-                // Draw Points and Data Labels
+                // Draw Points and X-axis Data Labels
                 points.forEach { (offset, entry) ->
                     drawCircle(
                         color = ChartPoint,
@@ -135,17 +160,12 @@ fun GrowthCurveChart(
                         center = offset
                     )
 
-                    // Draw Age label on X-axis (1 decimal)
-                    val textPaint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.LTGRAY
-                        textSize = 24f
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
+                    // Draw Age label on X-axis (in months with 1 decimal)
                     drawContext.canvas.nativeCanvas.drawText(
-                        "${String.format("%.1f", entry.edadMeses)}m",
+                        "${String.format(Locale.US, "%.1f", entry.edadMeses)}m",
                         offset.x,
-                        height + 20f,
-                        textPaint
+                        height + 24f,
+                        textPaintX
                     )
                 }
             }

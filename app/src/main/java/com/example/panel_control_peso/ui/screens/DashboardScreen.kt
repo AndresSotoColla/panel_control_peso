@@ -22,9 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.panel_control_peso.data.model.*
 import com.example.panel_control_peso.ui.components.GrowthCurveChart
-import com.example.panel_control_peso.ui.viewmodel.DashboardUiState
-import com.example.panel_control_peso.ui.viewmodel.DashboardViewModel
-import com.example.panel_control_peso.ui.viewmodel.ViewMode
+import com.example.panel_control_peso.ui.viewmodel.*
 import java.util.Locale
 
 val AgroGreenDark = Color(0xFF0F172A)
@@ -236,7 +234,7 @@ fun KpiGridHeaderSection(kpis: GlobalKpis) {
             )
             CleanKpiCard(
                 title = "Inducción Reciente",
-                value = "${kpis.induccionUltimoMes} bloques (último mes)",
+                value = "${kpis.induccionUltimoMes} bloques (últimos 2 meses)",
                 modifier = Modifier.weight(1f),
                 accentColor = AgroWarning
             )
@@ -391,7 +389,7 @@ fun SinForzarTabContent(
             )
         }
 
-        // Filter Chip for Inducción Último Mes
+        // Filter Chip for Inducción Últimos 2 Meses
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -400,30 +398,58 @@ fun SinForzarTabContent(
             FilterChip(
                 selected = state.soloUltimoMes,
                 onClick = { viewModel.toggleSoloUltimoMes(!state.soloUltimoMes) },
-                label = { Text("Inducción Último Mes", fontSize = 10.sp, color = if (state.soloUltimoMes) Color.Black else Color.White) },
+                label = { Text("Inducción Últimos 2 Meses", fontSize = 10.sp, color = if (state.soloUltimoMes) Color.Black else Color.White) },
                 colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroAccent, containerColor = AgroCardBg)
             )
             Text(
-                "Orden: Más viejo a nuevo (Siembra)",
+                "Orden: Siembra más antigua",
                 style = MaterialTheme.typography.labelSmall,
                 color = AgroTextMuted
             )
         }
 
-        // List of unforced blocks
+        // Dynamic Content Body based on ViewMode
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(state.filteredUnforcedBlocks) { block ->
-                CleanBlockCardItem(
-                    block = block,
-                    isSelected = block.bloque == state.selectedBlockName,
-                    onClick = {
-                        viewModel.selectBlock(block.bloque)
-                        viewModel.selectTab(3)
+            when (state.viewMode) {
+                ViewMode.BLOQUE -> {
+                    items(state.filteredUnforcedBlocks) { block ->
+                        CleanBlockCardItem(
+                            block = block,
+                            isSelected = block.bloque == state.selectedBlockName,
+                            onClick = {
+                                viewModel.selectBlock(block.bloque)
+                                viewModel.selectTab(3)
+                            }
+                        )
                     }
-                )
+                }
+                ViewMode.GRUPO -> {
+                    items(state.groupedBySiembraUnforced) { group ->
+                        GroupSummaryCardItem(
+                            group = group,
+                            isSelected = group.name == state.selectedGroupName,
+                            onClick = {
+                                viewModel.selectGroup(group)
+                                viewModel.selectTab(1)
+                            }
+                        )
+                    }
+                }
+                ViewMode.LOTE -> {
+                    items(state.groupedByLoteUnforced) { lote ->
+                        LoteSummaryCardItem(
+                            lote = lote,
+                            isSelected = lote.name == state.selectedLoteName,
+                            onClick = {
+                                viewModel.selectLote(lote)
+                                viewModel.selectTab(1)
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -474,7 +500,7 @@ fun ForzadosTabContent(
         }
 
         Text(
-            "Consulta de Grupos Forzados (${state.filteredForcedBlocks.size} registros) - Ordenado de más viejo a nuevo",
+            "Consulta de Grupos Forzados - Ordenado por Siembra Más Antigua",
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
             color = AgroAccent,
             modifier = Modifier.padding(vertical = 4.dp)
@@ -484,15 +510,137 @@ fun ForzadosTabContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(state.filteredForcedBlocks) { block ->
-                CleanForcedBlockCardItem(
-                    block = block,
-                    isSelected = block.bloque == state.selectedBlockName,
-                    onClick = {
-                        viewModel.selectBlock(block.bloque)
-                        viewModel.selectTab(3)
+            when (state.viewMode) {
+                ViewMode.BLOQUE -> {
+                    items(state.filteredForcedBlocks) { block ->
+                        CleanForcedBlockCardItem(
+                            block = block,
+                            isSelected = block.bloque == state.selectedBlockName,
+                            onClick = {
+                                viewModel.selectBlock(block.bloque)
+                                viewModel.selectTab(3)
+                            }
+                        )
                     }
+                }
+                ViewMode.GRUPO -> {
+                    items(state.groupedBySiembraForced) { group ->
+                        GroupSummaryCardItem(
+                            group = group,
+                            isSelected = group.name == state.selectedGroupName,
+                            onClick = {
+                                viewModel.selectGroup(group)
+                                viewModel.selectTab(1)
+                            }
+                        )
+                    }
+                }
+                ViewMode.LOTE -> {
+                    items(state.groupedByLoteForced) { lote ->
+                        LoteSummaryCardItem(
+                            lote = lote,
+                            isSelected = lote.name == state.selectedLoteName,
+                            onClick = {
+                                viewModel.selectLote(lote)
+                                viewModel.selectTab(1)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GroupSummaryCardItem(
+    group: GroupSummary,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .border(
+                width = if (isSelected) 2.dp else 0.dp,
+                color = if (isSelected) AgroBlue else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Grupo: ${group.name}",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = AgroBlue
                 )
+                Text(
+                    "${group.totalBloques} bloques",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = AgroAccent
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Área Total: ${format1Dec(group.totalArea / 10000)} ha", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                Text("Población: ${group.totalPoblacion} plantas", style = MaterialTheme.typography.bodySmall, color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun LoteSummaryCardItem(
+    lote: LoteSummary,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .border(
+                width = if (isSelected) 2.dp else 0.dp,
+                color = if (isSelected) Color(0xFFA855F7) else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    lote.name,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFFA855F7)
+                )
+                Text(
+                    "${lote.totalBloques} bloques",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = AgroAccent
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Área Total: ${format1Dec(lote.totalArea / 10000)} ha", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                Text("Población: ${lote.totalPoblacion} plantas", style = MaterialTheme.typography.bodySmall, color = Color.White)
             }
         }
     }
@@ -720,7 +868,7 @@ fun PesoTabContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    // Growth Curve Graph with Plant Age in Months
+                    // Growth Curve Graph with Plant Age in Months & Y-Axis Labels in Grams
                     GrowthCurveChart(series = analytics.serieHistorica)
                 }
                 item {
@@ -747,7 +895,9 @@ fun PesoTabContent(
 
 @Composable
 fun TrendSummaryCard(analytics: WeightAnalytics) {
-    val (trendText, trendColor, trendIcon) = when (analytics.tendencia) {
+    val tendenciaSegura = analytics.tendencia ?: "SIN_DATOS"
+
+    val (trendText, trendColor, trendIcon) = when (tendenciaSegura) {
         "CRECIENDO_ACELERADO" -> Triple("Creciendo Acelerado", AgroAccent, Icons.Default.TrendingUp)
         "CRECIENDO_ESTABLE" -> Triple("Creciendo Estable", AgroAccent, Icons.Default.TrendingUp)
         "ESTABLE" -> Triple("Tasa Estable / Estancado", AgroWarning, Icons.Default.TrendingFlat)
@@ -982,7 +1132,7 @@ fun DetalleBloqueTabContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    // Growth Curve Graph with Plant Age in Months
+                    // Growth Curve Graph with Plant Age in Months & Y-Axis Labels
                     GrowthCurveChart(series = summary.pesoAnalitica.serieHistorica)
                 }
                 item {

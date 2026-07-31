@@ -12,14 +12,14 @@ from sqlalchemy import text
 
 @consultor.route('/api/kpis_dashboard_agricola', methods=['GET'])
 def api_kpis_dashboard_agricola():
-    """Retorna los KPIs globales formateados en 2x2 para el aplicativo Android."""
+    """Retorna los KPIs globales (Inducción Reciente = últimos 2 meses)."""
     try:
         query = text("""
             SELECT 
                 (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS total_bloques_sin_forzar,
                 (SELECT COALESCE(SUM(area), 0) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS area_total_sin_forzar,
                 (SELECT COALESCE(SUM(poblacion), 0) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS poblacion_total_sin_forzar,
-                (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01' AND finduccion IS NOT NULL AND finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND finduccion <= CURRENT_DATE) AS induccion_ultimo_mes,
+                (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01' AND finduccion IS NOT NULL AND finduccion >= (CURRENT_DATE - INTERVAL '2 months') AND finduccion <= CURRENT_DATE) AS induccion_ultimo_mes,
                 (SELECT COUNT(DISTINCT bloque) FROM public.mu_peso_planta) AS total_bloques_muestreados
         """)
         res = db.session.execute(query).fetchone()
@@ -27,7 +27,7 @@ def api_kpis_dashboard_agricola():
             "total_bloques_sin_forzar": int(res.total_bloques_sin_forzar or 0),
             "area_total_sin_forzar": round(float(res.area_total_sin_forzar or 0.0), 1),
             "poblacion_total_sin_forzar": int(res.poblacion_total_sin_forzar or 0),
-            "induccion_ultimo_mes": int(res.induccion_ultimo_mes or 0),
+            "induccion_ultimo_mes": int(res.induccion_ultimo_mes or 0), # Últimos 2 meses
             "total_bloques_muestreados": int(res.total_bloques_muestreados or 0)
         })
     except Exception as e:
@@ -36,17 +36,13 @@ def api_kpis_dashboard_agricola():
 
 @consultor.route('/api/bloques_sin_forzar', methods=['GET'])
 def api_bloques_sin_forzar():
-    """
-    Retorna bloques no forzados (grupo_forza IS NULL).
-    Ordenado de más viejo a más nuevo por FECHA DE SIEMBRA.
-    Soporta filtro por bloque, grupo_siembra y lote (dígitos 3 y 4 del bloque).
-    """
+    """Retorna bloques no forzados ordenados por FECHA SIEMBRA (más viejo a más nuevo)."""
     try:
         search = request.args.get('search', '')
         grupo_siembra = request.args.get('grupo_siembra', '')
         lote = request.args.get('lote', '')
         filtro_ultimo_mes = request.args.get('ultimo_mes', 'false').lower() == 'true'
-        limit = request.args.get('limit', 200, type=int)
+        limit = request.args.get('limit', 300, type=int)
 
         additional_filter = ""
         params = {'limit': limit}
@@ -64,7 +60,7 @@ def api_bloques_sin_forzar():
             params['lote'] = lote
 
         if filtro_ultimo_mes:
-            additional_filter += " AND bd.finduccion IS NOT NULL AND bd.finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND bd.finduccion <= CURRENT_DATE"
+            additional_filter += " AND bd.finduccion IS NOT NULL AND bd.finduccion >= (CURRENT_DATE - INTERVAL '2 months') AND bd.finduccion <= CURRENT_DATE"
 
         query = text(f"""
             SELECT 
@@ -97,16 +93,12 @@ def api_bloques_sin_forzar():
 
 @consultor.route('/api/bloques_forzados', methods=['GET'])
 def api_bloques_forzados():
-    """
-    Retorna bloques forzados (grupo_forza IS NOT NULL).
-    Ordenado de más viejo a más nuevo por FECHA DE SIEMBRA.
-    Soporta filtro por bloque, grupo_siembra y lote.
-    """
+    """Retorna bloques forzados ordenados por FECHA SIEMBRA (más viejo a más nuevo)."""
     try:
         search = request.args.get('search', '')
         grupo_siembra = request.args.get('grupo_siembra', '')
         lote = request.args.get('lote', '')
-        limit = request.args.get('limit', 200, type=int)
+        limit = request.args.get('limit', 300, type=int)
 
         additional_filter = ""
         params = {'limit': limit}
@@ -150,11 +142,8 @@ def api_bloques_forzados():
 
 @consultor.route('/api/analitica_peso_bloque/<bloque>', methods=['GET'])
 def api_analitica_peso_bloque(bloque):
-    """
-    Calcula la curva de crecimiento con EDAD EN MESES, peso promedio, desviación estándar y ganancia.
-    """
+    """Calcula la curva de crecimiento con EDAD EN MESES y desviación estándar."""
     try:
-        # Obtener fecha de siembra del bloque
         query_siembra = text("SELECT fecha_siembra FROM public.blocks_desarrollo WHERE bloque = :bloque LIMIT 1;")
         siembra_res = db.session.execute(query_siembra, {'bloque': bloque}).fetchone()
         fecha_siembra = siembra_res.fecha_siembra if siembra_res else None
@@ -193,7 +182,6 @@ def api_analitica_peso_bloque(bloque):
         df['desviacion_estandar'] = df['desviacion_estandar'].fillna(0.0).astype(float)
         df['fecha'] = df['fecha'].astype(str)
 
-        # Calcular edad en meses por cada fecha de muestreo
         if fecha_siembra:
             siembra_dt = pd.to_datetime(fecha_siembra)
             df['edad_meses'] = df['fecha'].apply(lambda f: round(max(0.0, (pd.to_datetime(f) - siembra_dt).days / 30.4375), 1))
@@ -211,7 +199,6 @@ def api_analitica_peso_bloque(bloque):
         tasa_diaria = round(ganancia / dias, 1) if dias > 0 else 0.0
         pct_incremento = round((ganancia / peso_ini * 100), 1) if peso_ini > 0 else 0.0
 
-        # Desviación estándar general de todos los registros de pesaje del bloque
         query_std_gen = text("SELECT ROUND(STDDEV_SAMP(peso)::numeric, 1) as std_gen FROM public.mu_peso_planta WHERE bloque = :bloque;")
         std_gen_res = db.session.execute(query_std_gen, {'bloque': bloque}).fetchone()
         std_general = float(std_gen_res.std_gen or 0.0) if std_gen_res else 0.0
@@ -246,10 +233,7 @@ def api_analitica_peso_bloque(bloque):
 
 @consultor.route('/api/fitosanitario_bloque/<bloque>', methods=['GET'])
 def api_fitosanitario_bloque(bloque):
-    """
-    Retorna la incidencia de Fusarium y reporte de plagas en PORCENTAJE (%).
-    (Sistema radicular eliminado según especificación).
-    """
+    """Retorna incidencia de Fusarium y reporte de plagas en PORCENTAJE (%)."""
     try:
         query = text("""
             SELECT 
