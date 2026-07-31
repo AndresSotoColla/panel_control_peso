@@ -25,13 +25,19 @@ import com.example.panel_control_peso.ui.components.GrowthCurveChart
 import com.example.panel_control_peso.ui.viewmodel.*
 import java.util.Locale
 
-val AgroGreenDark = Color(0xFF0F172A)
-val AgroCardBg = Color(0xFF1E293B)
-val AgroAccent = Color(0xFF10B981)
-val AgroWarning = Color(0xFFF59E0B)
-val AgroDanger = Color(0xFFEF4444)
-val AgroBlue = Color(0xFF3B82F6)
-val AgroTextMuted = Color(0xFF94A3B8)
+// PALETA OFICIAL SUAVE: Naranja, Negro, Gris y Beige con Letra Negra
+val AgroSoftBeigeBg = Color(0xFFF8F6F0)
+val AgroCardWhite = Color(0xFFFFFFFF)
+val AgroCardBeige = Color(0xFFF3EFE6)
+val AgroBorderSoft = Color(0xFFE2DCD0)
+val AgroDarkCharcoal = Color(0xFF18181B)
+val AgroOrangeAccent = Color(0xFFEA580C)
+val AgroOrangeLight = Color(0xFFFFEDD5)
+val AgroOrangeDark = Color(0xFFC2410C)
+val AgroGrayText = Color(0xFF52525B)
+val AgroGrayLight = Color(0xFFA1A1AA)
+val AgroBlueSoft = Color(0xFF2563EB)
+val AgroDangerSoft = Color(0xFFDC2626)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,22 +61,22 @@ fun DashboardScreen(
                         Icon(Icons.Default.Refresh, contentDescription = "Actualizar", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AgroGreenDark)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AgroDarkCharcoal)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = AgroGreenDark) {
+            NavigationBar(containerColor = AgroDarkCharcoal) {
                 NavigationBarItem(
                     selected = state.selectedTab == 0,
                     onClick = { viewModel.selectTab(0) },
                     icon = { Icon(Icons.Default.Agriculture, contentDescription = null) },
                     label = { Text("Sin Forzar", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AgroAccent,
-                        selectedTextColor = AgroAccent,
-                        unselectedIconColor = AgroTextMuted,
-                        unselectedTextColor = AgroTextMuted,
-                        indicatorColor = AgroCardBg
+                        selectedIconColor = AgroOrangeAccent,
+                        selectedTextColor = AgroOrangeAccent,
+                        unselectedIconColor = AgroGrayLight,
+                        unselectedTextColor = AgroGrayLight,
+                        indicatorColor = AgroDarkCharcoal
                     )
                 )
                 NavigationBarItem(
@@ -79,11 +85,11 @@ fun DashboardScreen(
                     icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
                     label = { Text("Forzados", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AgroAccent,
-                        selectedTextColor = AgroAccent,
-                        unselectedIconColor = AgroTextMuted,
-                        unselectedTextColor = AgroTextMuted,
-                        indicatorColor = AgroCardBg
+                        selectedIconColor = AgroOrangeAccent,
+                        selectedTextColor = AgroOrangeAccent,
+                        unselectedIconColor = AgroGrayLight,
+                        unselectedTextColor = AgroGrayLight,
+                        indicatorColor = AgroDarkCharcoal
                     )
                 )
                 NavigationBarItem(
@@ -92,11 +98,11 @@ fun DashboardScreen(
                     icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
                     label = { Text("Peso", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AgroAccent,
-                        selectedTextColor = AgroAccent,
-                        unselectedIconColor = AgroTextMuted,
-                        unselectedTextColor = AgroTextMuted,
-                        indicatorColor = AgroCardBg
+                        selectedIconColor = AgroOrangeAccent,
+                        selectedTextColor = AgroOrangeAccent,
+                        unselectedIconColor = AgroGrayLight,
+                        unselectedTextColor = AgroGrayLight,
+                        indicatorColor = AgroDarkCharcoal
                     )
                 )
                 NavigationBarItem(
@@ -105,11 +111,11 @@ fun DashboardScreen(
                     icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
                     label = { Text("Fitosanitario", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AgroAccent,
-                        selectedTextColor = AgroAccent,
-                        unselectedIconColor = AgroTextMuted,
-                        unselectedTextColor = AgroTextMuted,
-                        indicatorColor = AgroCardBg
+                        selectedIconColor = AgroOrangeAccent,
+                        selectedTextColor = AgroOrangeAccent,
+                        unselectedIconColor = AgroGrayLight,
+                        unselectedTextColor = AgroGrayLight,
+                        indicatorColor = AgroDarkCharcoal
                     )
                 )
                 NavigationBarItem(
@@ -118,16 +124,16 @@ fun DashboardScreen(
                     icon = { Icon(Icons.Default.Analytics, contentDescription = null) },
                     label = { Text("Ficha", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = AgroAccent,
-                        selectedTextColor = AgroAccent,
-                        unselectedIconColor = AgroTextMuted,
-                        unselectedTextColor = AgroTextMuted,
-                        indicatorColor = AgroCardBg
+                        selectedIconColor = AgroOrangeAccent,
+                        selectedTextColor = AgroOrangeAccent,
+                        unselectedIconColor = AgroGrayLight,
+                        unselectedTextColor = AgroGrayLight,
+                        indicatorColor = AgroDarkCharcoal
                     )
                 )
             }
         },
-        containerColor = AgroGreenDark
+        containerColor = AgroSoftBeigeBg
     ) { padding ->
         Box(
             modifier = Modifier
@@ -149,8 +155,8 @@ fun DashboardScreen(
                 if (state.isLoading) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth(),
-                        color = AgroAccent,
-                        trackColor = AgroCardBg
+                        color = AgroOrangeAccent,
+                        trackColor = AgroBorderSoft
                     )
                 }
 
@@ -185,13 +191,13 @@ fun KpiGridHeaderSection(kpis: GlobalKpis) {
                 title = "Sin Forzar",
                 value = "${kpis.totalBloquesSinForzar} bloques",
                 modifier = Modifier.weight(1f),
-                accentColor = AgroAccent
+                accentColor = AgroOrangeAccent
             )
             CleanKpiCard(
                 title = "Área Sin Forzar",
                 value = "${format1Dec(kpis.areaTotalSinForzar / 10000)} ha",
                 modifier = Modifier.weight(1f),
-                accentColor = AgroBlue
+                accentColor = AgroDarkCharcoal
             )
         }
         Row(
@@ -202,13 +208,13 @@ fun KpiGridHeaderSection(kpis: GlobalKpis) {
                 title = "Población Total",
                 value = "${kpis.poblacionTotalSinForzar} plantas",
                 modifier = Modifier.weight(1f),
-                accentColor = Color(0xFFA855F7)
+                accentColor = AgroDarkCharcoal
             )
             CleanKpiCard(
                 title = "Inducción Reciente",
                 value = "${kpis.induccionUltimoMes} bloques (últimos 2 meses)",
                 modifier = Modifier.weight(1f),
-                accentColor = AgroWarning
+                accentColor = AgroOrangeAccent
             )
         }
     }
@@ -222,8 +228,9 @@ fun CleanKpiCard(
     accentColor: Color
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
         modifier = modifier
     ) {
         Column(
@@ -233,7 +240,7 @@ fun CleanKpiCard(
             Text(
                 title,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = AgroTextMuted,
+                color = AgroGrayText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -255,8 +262,9 @@ fun ErrorBanner(
     onRetry: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroDanger.copy(alpha = 0.15f)),
+        colors = CardDefaults.cardColors(containerColor = AgroDangerSoft.copy(alpha = 0.1f)),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroDangerSoft.copy(alpha = 0.3f)),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
@@ -267,14 +275,14 @@ fun ErrorBanner(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Error, contentDescription = null, tint = AgroDanger)
+            Icon(Icons.Default.Error, contentDescription = null, tint = AgroDangerSoft)
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Aviso de Conexión", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color.White)
-                Text(message, style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                Text("Aviso de Conexión", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = AgroDarkCharcoal)
+                Text(message, style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
             }
             IconButton(onClick = onRetry) {
-                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Refresh, contentDescription = null, tint = AgroDarkCharcoal)
             }
         }
     }
@@ -292,22 +300,25 @@ fun ViewModeSelector(
         FilterChip(
             selected = selectedMode == ViewMode.BLOQUE,
             onClick = { onModeSelected(ViewMode.BLOQUE) },
-            label = { Text("Ver por Bloque", fontSize = 11.sp) },
-            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroAccent, containerColor = AgroCardBg),
+            label = { Text("Ver por Bloque", fontSize = 11.sp, color = if (selectedMode == ViewMode.BLOQUE) Color.White else AgroDarkCharcoal) },
+            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroOrangeAccent, containerColor = AgroCardWhite),
+            border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selectedMode == ViewMode.BLOQUE, borderColor = AgroBorderSoft),
             modifier = Modifier.weight(1f)
         )
         FilterChip(
             selected = selectedMode == ViewMode.GRUPO,
             onClick = { onModeSelected(ViewMode.GRUPO) },
-            label = { Text("Ver por Grupo", fontSize = 11.sp) },
-            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroBlue, containerColor = AgroCardBg),
+            label = { Text("Ver por Grupo", fontSize = 11.sp, color = if (selectedMode == ViewMode.GRUPO) Color.White else AgroDarkCharcoal) },
+            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroDarkCharcoal, containerColor = AgroCardWhite),
+            border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selectedMode == ViewMode.GRUPO, borderColor = AgroBorderSoft),
             modifier = Modifier.weight(1f)
         )
         FilterChip(
             selected = selectedMode == ViewMode.LOTE,
             onClick = { onModeSelected(ViewMode.LOTE) },
-            label = { Text("Ver por Lote", fontSize = 11.sp) },
-            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFA855F7), containerColor = AgroCardBg),
+            label = { Text("Ver por Lote", fontSize = 11.sp, color = if (selectedMode == ViewMode.LOTE) Color.White else AgroDarkCharcoal) },
+            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroGrayText, containerColor = AgroCardWhite),
+            border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selectedMode == ViewMode.LOTE, borderColor = AgroBorderSoft),
             modifier = Modifier.weight(1f)
         )
     }
@@ -366,13 +377,14 @@ fun SinForzarTabContent(
             FilterChip(
                 selected = state.unforcedSoloUltimoMes,
                 onClick = { viewModel.toggleUnforcedSoloUltimoMes(!state.unforcedSoloUltimoMes) },
-                label = { Text("Inducción Últimos 2 Meses", fontSize = 10.sp, color = if (state.unforcedSoloUltimoMes) Color.Black else Color.White) },
-                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroAccent, containerColor = AgroCardBg)
+                label = { Text("Inducción Últimos 2 Meses", fontSize = 10.sp, color = if (state.unforcedSoloUltimoMes) Color.White else AgroDarkCharcoal) },
+                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroOrangeAccent, containerColor = AgroCardWhite),
+                border = FilterChipDefaults.filterChipBorder(enabled = true, selected = state.unforcedSoloUltimoMes, borderColor = AgroBorderSoft)
             )
             Text(
                 "Orden: Siembra más antigua",
                 style = MaterialTheme.typography.labelSmall,
-                color = AgroTextMuted
+                color = AgroGrayText
             )
         }
 
@@ -470,7 +482,7 @@ fun ForzadosTabContent(
         Text(
             "Consulta de Grupos Forzados - Ordenado por Siembra Más Antigua",
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-            color = AgroAccent,
+            color = AgroOrangeAccent,
             modifier = Modifier.padding(vertical = 4.dp)
         )
 
@@ -527,16 +539,15 @@ fun GroupSummaryCardItem(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) AgroOrangeAccent else AgroBorderSoft
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) AgroBlue else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(
@@ -547,12 +558,12 @@ fun GroupSummaryCardItem(
                 Text(
                     "Grupo: ${group.name}",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = AgroBlue
+                    color = AgroDarkCharcoal
                 )
                 Text(
                     "${group.totalBloques} bloques",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = AgroAccent
+                    color = AgroOrangeAccent
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
@@ -560,8 +571,8 @@ fun GroupSummaryCardItem(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Área Total: ${format1Dec(group.totalArea / 10000)} ha", style = MaterialTheme.typography.bodySmall, color = Color.White)
-                Text("Población: ${group.totalPoblacion} plantas", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                Text("Área Total: ${format1Dec(group.totalArea / 10000)} ha", style = MaterialTheme.typography.bodySmall, color = AgroGrayText)
+                Text("Población: ${group.totalPoblacion} plantas", style = MaterialTheme.typography.bodySmall, color = AgroGrayText)
             }
         }
     }
@@ -574,16 +585,15 @@ fun LoteSummaryCardItem(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) AgroOrangeAccent else AgroBorderSoft
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) Color(0xFFA855F7) else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(
@@ -594,12 +604,12 @@ fun LoteSummaryCardItem(
                 Text(
                     lote.name,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFFA855F7)
+                    color = AgroDarkCharcoal
                 )
                 Text(
                     "${lote.totalBloques} bloques",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = AgroAccent
+                    color = AgroOrangeAccent
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
@@ -607,8 +617,8 @@ fun LoteSummaryCardItem(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Área Total: ${format1Dec(lote.totalArea / 10000)} ha", style = MaterialTheme.typography.bodySmall, color = Color.White)
-                Text("Población: ${lote.totalPoblacion} plantas", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                Text("Área Total: ${format1Dec(lote.totalArea / 10000)} ha", style = MaterialTheme.typography.bodySmall, color = AgroGrayText)
+                Text("Población: ${lote.totalPoblacion} plantas", style = MaterialTheme.typography.bodySmall, color = AgroGrayText)
             }
         }
     }
@@ -632,15 +642,15 @@ fun AutoSuggestSearchField(
                 onValueChange(it)
                 expanded = true
             },
-            placeholder = { Text(placeholder, color = AgroTextMuted, fontSize = 11.sp) },
+            placeholder = { Text(placeholder, color = AgroGrayLight, fontSize = 11.sp) },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AgroCardBg,
-                unfocusedContainerColor = AgroCardBg,
-                focusedBorderColor = AgroAccent,
-                unfocusedBorderColor = AgroCardBg,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
+                focusedContainerColor = AgroCardWhite,
+                unfocusedContainerColor = AgroCardWhite,
+                focusedBorderColor = AgroOrangeAccent,
+                unfocusedBorderColor = AgroBorderSoft,
+                focusedTextColor = AgroDarkCharcoal,
+                unfocusedTextColor = AgroDarkCharcoal
             ),
             shape = RoundedCornerShape(8.dp),
             singleLine = true
@@ -648,7 +658,8 @@ fun AutoSuggestSearchField(
 
         if (expanded && suggestions.isNotEmpty()) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+                colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 2.dp)
@@ -657,7 +668,7 @@ fun AutoSuggestSearchField(
                     suggestions.forEach { item ->
                         Text(
                             text = item,
-                            color = Color.White,
+                            color = AgroDarkCharcoal,
                             fontSize = 12.sp,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -681,16 +692,15 @@ fun CleanBlockCardItem(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) AgroOrangeAccent else AgroBorderSoft
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) AgroAccent else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(
@@ -701,14 +711,14 @@ fun CleanBlockCardItem(
                 Text(
                     "${block.bloque} (Lote ${block.loteCalculado})",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    color = AgroDarkCharcoal
                 )
 
                 if (!block.grupoSiembra.isNull_or_empty()) {
                     Text(
                         "Grupo: ${block.grupoSiembra}",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = AgroAccent
+                        color = AgroOrangeAccent
                     )
                 }
             }
@@ -717,7 +727,7 @@ fun CleanBlockCardItem(
                 Text(
                     block.descripcion ?: "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = AgroTextMuted,
+                    color = AgroGrayText,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
@@ -729,16 +739,16 @@ fun CleanBlockCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Fecha Siembra", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text(block.fechaSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                    Text("Fecha Siembra", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+                    Text(block.fechaSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = AgroDarkCharcoal)
                 }
                 Column {
-                    Text("Fin Inducción", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text(block.finduccion ?: "Sin asignar", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                    Text("Fin Inducción", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+                    Text(block.finduccion ?: "Sin asignar", style = MaterialTheme.typography.bodySmall, color = AgroDarkCharcoal)
                 }
                 Column {
-                    Text("Área / Población", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text("${format1Dec(block.area)} m² (${block.poblacion ?: 0})", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                    Text("Área / Población", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+                    Text("${format1Dec(block.area)} m² (${block.poblacion ?: 0})", style = MaterialTheme.typography.bodySmall, color = AgroDarkCharcoal)
                 }
             }
         }
@@ -752,16 +762,15 @@ fun CleanForcedBlockCardItem(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) AgroOrangeAccent else AgroBorderSoft
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) AgroAccent else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
-            )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(
@@ -772,13 +781,13 @@ fun CleanForcedBlockCardItem(
                 Text(
                     "${block.bloque} (Lote ${block.loteCalculado})",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    color = AgroDarkCharcoal
                 )
 
                 Text(
                     "Grupo Forza: ${block.grupoForza ?: "N/D"}",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = AgroBlue
+                    color = AgroOrangeAccent
                 )
             }
 
@@ -786,7 +795,7 @@ fun CleanForcedBlockCardItem(
                 Text(
                     block.descripcion ?: "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = AgroTextMuted,
+                    color = AgroGrayText,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
@@ -798,16 +807,16 @@ fun CleanForcedBlockCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Grupo Siembra", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text(block.grupoSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                    Text("Grupo Siembra", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+                    Text(block.grupoSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = AgroDarkCharcoal)
                 }
                 Column {
-                    Text("Fecha Siembra", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text(block.fechaSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                    Text("Fecha Siembra", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+                    Text(block.fechaSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = AgroDarkCharcoal)
                 }
                 Column {
-                    Text("Fin Inducción", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text(block.finduccion ?: "N/D", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                    Text("Fin Inducción", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+                    Text(block.finduccion ?: "N/D", style = MaterialTheme.typography.bodySmall, color = AgroDarkCharcoal)
                 }
             }
         }
@@ -829,14 +838,13 @@ fun PesoTabContent(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     "Selecciona un bloque o grupo con muestreos para ver el análisis y gráfica de peso.",
-                    color = AgroTextMuted,
+                    color = AgroGrayText,
                     textAlign = TextAlign.Center
                 )
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    // Growth Curve Graph with Plant Age in Months & Y-Axis Labels
                     GrowthCurveChart(series = analytics.serieHistorica)
                 }
                 item {
@@ -849,7 +857,7 @@ fun PesoTabContent(
                     Text(
                         "Curva Promedio por Edad en Meses (${analytics.serieHistorica.size} puntos)",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White,
+                        color = AgroDarkCharcoal,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -866,16 +874,17 @@ fun TrendSummaryCard(analytics: WeightAnalytics) {
     val tendenciaSegura = analytics.tendencia ?: "SIN_DATOS"
 
     val (trendText, trendColor, trendIcon) = when (tendenciaSegura) {
-        "CRECIENDO_ACELERADO" -> Triple("Creciendo Acelerado", AgroAccent, Icons.Default.TrendingUp)
-        "CRECIENDO_ESTABLE" -> Triple("Creciendo Estable", AgroAccent, Icons.Default.TrendingUp)
-        "ESTABLE" -> Triple("Tasa Estable / Estancado", AgroWarning, Icons.Default.TrendingFlat)
-        "DISMINUYENDO" -> Triple("Disminuyendo de Peso", AgroDanger, Icons.Default.TrendingDown)
-        else -> Triple("Sin Datos", AgroTextMuted, Icons.Default.Help)
+        "CRECIENDO_ACELERADO" -> Triple("Creciendo Acelerado", AgroOrangeAccent, Icons.Default.TrendingUp)
+        "CRECIENDO_ESTABLE" -> Triple("Creciendo Estable", AgroOrangeAccent, Icons.Default.TrendingUp)
+        "ESTABLE" -> Triple("Tasa Estable / Estancado", AgroGrayText, Icons.Default.TrendingFlat)
+        "DISMINUYENDO" -> Triple("Disminuyendo de Peso", AgroDangerSoft, Icons.Default.TrendingDown)
+        else -> Triple("Sin Datos", AgroGrayText, Icons.Default.Help)
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -885,12 +894,12 @@ fun TrendSummaryCard(analytics: WeightAnalytics) {
             Icon(trendIcon, contentDescription = null, tint = trendColor, modifier = Modifier.size(30.dp))
             Spacer(modifier = Modifier.width(10.dp))
             Column {
-                Text("Tendencia de Crecimiento", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                Text(trendText, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                Text("Tendencia de Crecimiento", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+                Text(trendText, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = AgroDarkCharcoal)
                 Text(
                     "Desv. Estándar: σ = ${format1Dec(analytics.desviacionEstandarGeneral)} g | Muestreos: ${analytics.totalMuestreos}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = AgroAccent
+                    color = AgroOrangeAccent
                 )
             }
         }
@@ -900,15 +909,16 @@ fun TrendSummaryCard(analytics: WeightAnalytics) {
 @Composable
 fun GrowthMetricsCard(analytics: WeightAnalytics) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 "Métricas de Ganancia de Peso",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
+                color = AgroDarkCharcoal
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -924,17 +934,18 @@ fun GrowthMetricsCard(analytics: WeightAnalytics) {
 @Composable
 fun MetricColumn(label: String, value: String, sub: String) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-        Text(value, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = Color.White)
-        Text(sub, style = MaterialTheme.typography.labelSmall, color = AgroAccent)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
+        Text(value, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = AgroDarkCharcoal)
+        Text(sub, style = MaterialTheme.typography.labelSmall, color = AgroOrangeAccent)
     }
 }
 
 @Composable
 fun WeightSeriesItem(entry: WeightSeriesEntry) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg.copy(alpha = 0.6f)),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -943,20 +954,20 @@ fun WeightSeriesItem(entry: WeightSeriesEntry) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(if (entry.fecha.isNotEmpty()) entry.fecha else "Edad: ${format1Dec(entry.edadMeses)} m", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                Text(if (entry.fecha.isNotEmpty()) entry.fecha else "Edad: ${format1Dec(entry.edadMeses)} m", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = AgroDarkCharcoal)
                 Text(
                     "Edad Planta: ${format1Dec(entry.edadMeses)} meses (${entry.cantidadMuestras} muestras)",
                     style = MaterialTheme.typography.labelSmall,
-                    color = AgroAccent
+                    color = AgroOrangeAccent
                 )
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text("${format1Dec(entry.pesoPromedio)} g", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = AgroAccent)
+                Text("${format1Dec(entry.pesoPromedio)} g", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = AgroOrangeAccent)
                 Text(
                     "σ = ${format1Dec(entry.desviacionEstandar)} g",
                     style = MaterialTheme.typography.labelSmall,
-                    color = AgroTextMuted
+                    color = AgroGrayText
                 )
             }
         }
@@ -978,7 +989,7 @@ fun FitosanitarioTabContent(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     "Selecciona un bloque muestreado para analizar Fusarium y Plagas (%).",
-                    color = AgroTextMuted,
+                    color = AgroGrayText,
                     textAlign = TextAlign.Center
                 )
             }
@@ -998,11 +1009,12 @@ fun FitosanitarioTabContent(
 @Composable
 fun FusariumCard(phyto: PhytosanitaryAnalytics) {
     val isHigh = phyto.porcentajeFusarium > 5.0
-    val cardColor = if (isHigh) AgroDanger else AgroAccent
+    val cardColor = if (isHigh) AgroDangerSoft else AgroOrangeAccent
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1010,7 +1022,7 @@ fun FusariumCard(phyto: PhytosanitaryAnalytics) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Incidencia de Fusarium", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                Text("Incidencia de Fusarium", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
                 Text(
                     "${format1Dec(phyto.porcentajeFusarium)}% Fusarium",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
@@ -1019,7 +1031,7 @@ fun FusariumCard(phyto: PhytosanitaryAnalytics) {
                 Text(
                     "${phyto.casosFusarium} de ${phyto.totalPlantasMuestreadas} plantas muestreadas",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White
+                    color = AgroDarkCharcoal
                 )
             }
         }
@@ -1029,15 +1041,16 @@ fun FusariumCard(phyto: PhytosanitaryAnalytics) {
 @Composable
 fun PestPercentageBreakdownCard(plagas: PestBreakdown) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 "Detección de Plagas (% Incidencia)",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
+                color = AgroDarkCharcoal
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -1072,12 +1085,12 @@ fun PestPercentageItem(name: String, detail: PestItemDetail, modifier: Modifier 
         modifier = modifier.padding(end = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(name, style = MaterialTheme.typography.bodySmall, color = AgroTextMuted)
+        Text(name, style = MaterialTheme.typography.bodySmall, color = AgroGrayText)
         Spacer(modifier = Modifier.weight(1f))
         Text(
             "${detail.casos} (${format1Dec(detail.pct)}%)",
             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-            color = if (hasPest) AgroDanger else Color.White
+            color = if (hasPest) AgroDangerSoft else AgroDarkCharcoal
         )
     }
 }
@@ -1105,15 +1118,16 @@ fun DetalleBloqueTabContent(
                 }
                 item {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+                        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
                         shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 "Ficha Técnica Consolidada - Grupo: ${groupSummary.name}",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = AgroBlue
+                                color = AgroOrangeAccent
                             )
                             Spacer(modifier = Modifier.height(8.dp))
 
@@ -1127,7 +1141,7 @@ fun DetalleBloqueTabContent(
                     Text(
                         "Bloques en el Grupo (${groupSummary.blocks.size})",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White,
+                        color = AgroDarkCharcoal,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -1149,15 +1163,16 @@ fun DetalleBloqueTabContent(
                 }
                 item {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+                        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
                         shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 "Ficha Técnica Consolidada - ${loteSummary.name}",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFFA855F7)
+                                color = AgroOrangeAccent
                             )
                             Spacer(modifier = Modifier.height(8.dp))
 
@@ -1171,7 +1186,7 @@ fun DetalleBloqueTabContent(
                     Text(
                         "Bloques en el Lote (${loteSummary.blocks.size})",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White,
+                        color = AgroDarkCharcoal,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -1192,15 +1207,16 @@ fun DetalleBloqueTabContent(
                 item {
                     val agro = summary.agronomico
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+                        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
                         shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 "Ficha Agronómica - ${summary.bloque}",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = AgroAccent
+                                color = AgroOrangeAccent
                             )
                             Spacer(modifier = Modifier.height(8.dp))
 
@@ -1217,7 +1233,7 @@ fun DetalleBloqueTabContent(
                                 RowDetail("Días Pre-Forza", format1Dec(agro.diasPreforza))
                                 RowDetail("Días Pos-Forza", format1Dec(agro.diasPosforza))
                             } else {
-                                Text("Sin datos agronómicos en blocks_desarrollo.", color = AgroTextMuted)
+                                Text("Sin datos agronómicos en blocks_desarrollo.", color = AgroGrayText)
                             }
                         }
                     }
@@ -1225,7 +1241,7 @@ fun DetalleBloqueTabContent(
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Selecciona un bloque o grupo para ver la ficha completa.", color = AgroTextMuted)
+                Text("Selecciona un bloque o grupo para ver la ficha completa.", color = AgroGrayText)
             }
         }
     }
@@ -1237,8 +1253,8 @@ fun RowDetail(label: String, value: String) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = AgroTextMuted)
-        Text(value, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color.White)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = AgroGrayText)
+        Text(value, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = AgroDarkCharcoal)
     }
 }
 
@@ -1248,8 +1264,9 @@ fun BlockSelectorHeader(
     onSelectBlock: (String) -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+        colors = CardDefaults.cardColors(containerColor = AgroCardWhite),
         shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AgroBorderSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1258,11 +1275,11 @@ fun BlockSelectorHeader(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text("Seleccionado Actual", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                Text("Seleccionado Actual", style = MaterialTheme.typography.labelSmall, color = AgroGrayText)
                 Text(
                     if (state.selectedBlockName.isNotEmpty()) state.selectedBlockName else "Ninguno",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = AgroAccent
+                    color = AgroOrangeAccent
                 )
             }
         }
