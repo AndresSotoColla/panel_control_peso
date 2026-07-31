@@ -14,72 +14,66 @@ class DashboardRepository(
 
     suspend fun getGlobalKpis(): Result<GlobalKpis> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            val directRes = directDbRepository.getGlobalKpis()
-            if (directRes.isSuccess) return@withContext directRes
+            return@withContext directDbRepository.getGlobalKpis()
         }
 
         try {
             val res = RetrofitClient.apiService.getGlobalKpis()
             Result.success(res)
-        } catch (e: Exception) {
-            // Fallback to direct DB if API fails
-            directDbRepository.getGlobalKpis()
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al conectar a la API REST", e))
         }
     }
 
     suspend fun getUnforcedBlocks(search: String? = null): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            val directRes = directDbRepository.getUnforcedBlocks(search)
-            if (directRes.isSuccess) return@withContext directRes
+            return@withContext directDbRepository.getUnforcedBlocks(search)
         }
 
         try {
             val res = RetrofitClient.apiService.getUnforcedBlocks(search = search)
             Result.success(res)
-        } catch (e: Exception) {
-            directDbRepository.getUnforcedBlocks(search)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al consultar la API REST", e))
         }
     }
 
     suspend fun getWeightAnalytics(bloque: String): Result<WeightAnalytics> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            val directRes = directDbRepository.getWeightAnalytics(bloque)
-            if (directRes.isSuccess) return@withContext directRes
+            return@withContext directDbRepository.getWeightAnalytics(bloque)
         }
 
         try {
             val res = RetrofitClient.apiService.getWeightAnalytics(bloque)
             Result.success(res)
-        } catch (e: Exception) {
-            directDbRepository.getWeightAnalytics(bloque)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al consultar analítica de peso en API", e))
         }
     }
 
     suspend fun getPhytosanitaryAnalytics(bloque: String): Result<PhytosanitaryAnalytics> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            val directRes = directDbRepository.getPhytosanitaryAnalytics(bloque)
-            if (directRes.isSuccess) return@withContext directRes
+            return@withContext directDbRepository.getPhytosanitaryAnalytics(bloque)
         }
 
         try {
             val res = RetrofitClient.apiService.getPhytosanitaryAnalytics(bloque)
             Result.success(res)
-        } catch (e: Exception) {
-            directDbRepository.getPhytosanitaryAnalytics(bloque)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error fitosanitario en API", e))
         }
     }
 
     suspend fun getBlockSummary(bloque: String): Result<BlockSummary> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            val directRes = directDbRepository.getBlockSummary(bloque)
-            if (directRes.isSuccess) return@withContext directRes
+            return@withContext directDbRepository.getBlockSummary(bloque)
         }
 
         try {
             val res = RetrofitClient.apiService.getBlockSummary(bloque)
             Result.success(res)
-        } catch (e: Exception) {
-            directDbRepository.getBlockSummary(bloque)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error resumen de bloque en API", e))
         }
     }
 }

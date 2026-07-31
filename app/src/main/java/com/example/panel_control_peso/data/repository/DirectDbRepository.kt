@@ -27,6 +27,11 @@ class DirectDbRepository {
         props.setProperty("loginTimeout", "10")
         props.setProperty("connectTimeout", "10")
         props.setProperty("socketTimeout", "15")
+        
+        // AWS RDS SSL configuration for Android
+        props.setProperty("ssl", "true")
+        props.setProperty("sslmode", "prefer")
+        props.setProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory")
 
         return DriverManager.getConnection(dbUrl, props)
     }
