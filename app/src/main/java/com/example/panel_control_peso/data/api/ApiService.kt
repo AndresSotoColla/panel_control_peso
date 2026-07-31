@@ -7,27 +7,22 @@ import retrofit2.http.Query
 
 interface ApiService {
 
-    @GET("api/v1/dashboard/kpis")
+    @GET("api/kpis_dashboard_agricola")
     suspend fun getGlobalKpis(): GlobalKpis
 
-    @GET("api/v1/blocks/unforced")
+    @GET("api/bloques_sin_forzar")
     suspend fun getUnforcedBlocks(
         @Query("search") search: String? = null,
         @Query("limit") limit: Int = 100
     ): List<UnforcedBlock>
 
-    @GET("api/v1/blocks/{bloque}/weight-analytics")
+    @GET("api/analitica_peso_bloque/{bloque}")
     suspend fun getWeightAnalytics(
         @Path("bloque") bloque: String
     ): WeightAnalytics
 
-    @GET("api/v1/blocks/{bloque}/phytosanitary")
+    @GET("api/fitosanitario_bloque/{bloque}")
     suspend fun getPhytosanitaryAnalytics(
         @Path("bloque") bloque: String
     ): PhytosanitaryAnalytics
-
-    @GET("api/v1/blocks/{bloque}/summary")
-    suspend fun getBlockSummary(
-        @Path("bloque") bloque: String
-    ): BlockSummary
 }

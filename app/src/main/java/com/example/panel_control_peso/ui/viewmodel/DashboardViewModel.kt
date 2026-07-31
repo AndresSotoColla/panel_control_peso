@@ -23,7 +23,7 @@ data class DashboardUiState(
     val selectedBlockName: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isDirectDbMode: Boolean = true,
+    val isDirectDbMode: Boolean = false,
     val currentServerUrl: String = RetrofitClient.BASE_URL
 )
 

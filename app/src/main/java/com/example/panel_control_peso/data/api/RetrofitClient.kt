@@ -8,9 +8,8 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // Default: 10.0.2.2 is local loopback for Android Emulator connecting to local host.
-    // If testing on real device or local network, update BASE_URL to your PC's local IP e.g. "http://192.168.1.50:8000/"
-    var BASE_URL = "http://192.168.1.9:8000/"
+    // Default API Server URL
+    var BASE_URL = "https://interno.control.agricolaguapa.com/"
         private set
 
     fun setCustomBaseUrl(url: String) {
@@ -19,7 +18,7 @@ object RetrofitClient {
             formattedUrl += "/"
         }
         if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-            formattedUrl = "http://$formattedUrl"
+            formattedUrl = "https://$formattedUrl"
         }
         BASE_URL = formattedUrl
         apiServiceInstance = null
@@ -36,8 +35,8 @@ object RetrofitClient {
 
                 val client = OkHttpClient.Builder()
                     .addInterceptor(logging)
-                    .connectTimeout(15, TimeUnit.SECONDS)
-                    .readTimeout(15, TimeUnit.SECONDS)
+                    .connectTimeout(20, TimeUnit.SECONDS)
+                    .readTimeout(20, TimeUnit.SECONDS)
                     .build()
 
                 val retrofit = Retrofit.Builder()

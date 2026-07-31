@@ -9,8 +9,8 @@ class DashboardRepository(
     private val directDbRepository: DirectDbRepository = DirectDbRepository()
 ) {
 
-    // Toggle for connection mode: true = Direct AWS RDS PostgreSQL, false = REST API
-    var useDirectDbMode: Boolean = true
+    // Default: false = API REST Mode (https://interno.control.agricolaguapa.com/), true = Direct AWS RDS PostgreSQL
+    var useDirectDbMode: Boolean = false
 
     suspend fun getGlobalKpis(): Result<GlobalKpis> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
@@ -21,7 +21,7 @@ class DashboardRepository(
             val res = RetrofitClient.apiService.getGlobalKpis()
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error al conectar a la API REST", e))
+            Result.failure(Exception(e.message ?: "Error al conectar con https://interno.control.agricolaguapa.com/", e))
         }
     }
 
@@ -34,7 +34,7 @@ class DashboardRepository(
             val res = RetrofitClient.apiService.getUnforcedBlocks(search = search)
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error al consultar la API REST", e))
+            Result.failure(Exception(e.message ?: "Error al consultar bloques en la API", e))
         }
     }
 
@@ -47,7 +47,7 @@ class DashboardRepository(
             val res = RetrofitClient.apiService.getWeightAnalytics(bloque)
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error al consultar analítica de peso en API", e))
+            Result.failure(Exception(e.message ?: "Error analítica peso en la API", e))
         }
     }
 
@@ -60,7 +60,7 @@ class DashboardRepository(
             val res = RetrofitClient.apiService.getPhytosanitaryAnalytics(bloque)
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error fitosanitario en API", e))
+            Result.failure(Exception(e.message ?: "Error fitosanitario en la API", e))
         }
     }
 
@@ -70,10 +70,21 @@ class DashboardRepository(
         }
 
         try {
-            val res = RetrofitClient.apiService.getBlockSummary(bloque)
-            Result.success(res)
+            val unforcedRes = getUnforcedBlocks(bloque)
+            val agro = unforcedRes.getOrNull()?.firstOrNull { it.bloque == bloque }
+            val weight = getWeightAnalytics(bloque).getOrDefault(WeightAnalytics(bloque = bloque))
+            val phyto = getPhytosanitaryAnalytics(bloque).getOrDefault(PhytosanitaryAnalytics(bloque = bloque))
+
+            Result.success(
+                BlockSummary(
+                    bloque = bloque,
+                    agronomico = agro,
+                    pesoAnalitica = weight,
+                    fitosanitario = phyto
+                )
+            )
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error resumen de bloque en API", e))
+            Result.failure(Exception(e.message ?: "Error resumen bloque en la API", e))
         }
     }
 }
