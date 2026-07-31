@@ -41,7 +41,20 @@ data class DashboardUiState(
     val groupedByLoteUnforced: List<LoteSummary> = emptyList(),
     val groupedBySiembraForced: List<GroupSummary> = emptyList(),
     val groupedByLoteForced: List<LoteSummary> = emptyList(),
+
+    // INDEPENDENT FILTERS FOR "SIN FORZAR" TAB
+    val unforcedSearchQuery: String = "",
+    val unforcedGrupoSiembraFilter: String = "",
+    val unforcedLoteFilter: String = "",
+    val unforcedViewMode: ViewMode = ViewMode.BLOQUE,
+    val unforcedSoloUltimoMes: Boolean = false,
     
+    // INDEPENDENT FILTERS FOR "FORZADOS" TAB
+    val forcedSearchQuery: String = "",
+    val forcedGrupoSiembraFilter: String = "",
+    val forcedLoteFilter: String = "",
+    val forcedViewMode: ViewMode = ViewMode.BLOQUE,
+
     // Auto-complete coincidences / suggestions
     val bloqueSuggestions: List<String> = emptyList(),
     val grupoSiembraSuggestions: List<String> = emptyList(),
@@ -54,11 +67,6 @@ data class DashboardUiState(
     val selectedPhytosanitaryAnalytics: PhytosanitaryAnalytics? = null,
     
     val selectedTab: Int = 0,
-    val viewMode: ViewMode = ViewMode.BLOQUE,
-    val searchQuery: String = "",
-    val grupoSiembraFilter: String = "",
-    val loteFilter: String = "",
-    val soloUltimoMes: Boolean = false,
     val selectedBlockName: String = "",
     val selectedGroupName: String = "",
     val selectedLoteName: String = "",
@@ -82,9 +90,14 @@ class DashboardViewModel(
         loadDashboardData()
     }
 
-    fun setViewMode(mode: ViewMode) {
-        _uiState.value = _uiState.value.copy(viewMode = mode)
-        applyFilters()
+    fun setUnforcedViewMode(mode: ViewMode) {
+        _uiState.value = _uiState.value.copy(unforcedViewMode = mode)
+        applyUnforcedFilters()
+    }
+
+    fun setForcedViewMode(mode: ViewMode) {
+        _uiState.value = _uiState.value.copy(forcedViewMode = mode)
+        applyForcedFilters()
     }
 
     fun toggleConnectionMode(useDirectDb: Boolean) {
@@ -116,10 +129,10 @@ class DashboardViewModel(
             
             val kpisResult = repository.getGlobalKpis()
             val blocksResult = repository.getUnforcedBlocks(
-                search = _uiState.value.searchQuery,
-                grupoSiembra = _uiState.value.grupoSiembraFilter,
-                lote = _uiState.value.loteFilter,
-                ultimoMes = _uiState.value.soloUltimoMes
+                search = _uiState.value.unforcedSearchQuery,
+                grupoSiembra = _uiState.value.unforcedGrupoSiembraFilter,
+                lote = _uiState.value.unforcedLoteFilter,
+                ultimoMes = _uiState.value.unforcedSoloUltimoMes
             )
 
             val kpis = kpisResult.getOrDefault(GlobalKpis())
@@ -138,7 +151,7 @@ class DashboardViewModel(
                 errorMessage = errorMsg
             )
             updateSuggestions()
-            applyFilters()
+            applyUnforcedFilters()
 
             if (blocks.isNotEmpty() && _uiState.value.selectedBlockName.isEmpty()) {
                 selectBlock(blocks.first().bloque)
@@ -150,9 +163,9 @@ class DashboardViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             val res = repository.getForcedBlocks(
-                search = _uiState.value.searchQuery,
-                grupoSiembra = _uiState.value.grupoSiembraFilter,
-                lote = _uiState.value.loteFilter
+                search = _uiState.value.forcedSearchQuery,
+                grupoSiembra = _uiState.value.forcedGrupoSiembraFilter,
+                lote = _uiState.value.forcedLoteFilter
             )
             val forced = res.getOrDefault(emptyList())
 
@@ -161,39 +174,59 @@ class DashboardViewModel(
                 isLoading = false
             )
             updateSuggestions()
-            applyFilters()
+            applyForcedFilters()
         }
     }
 
-    fun onSearchQueryChanged(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
+    // INDEPENDENT UNFORCED FILTERS
+    fun onUnforcedSearchQueryChanged(query: String) {
+        _uiState.value = _uiState.value.copy(unforcedSearchQuery = query)
         updateSuggestions()
-        applyFilters()
+        applyUnforcedFilters()
     }
 
-    fun onGrupoSiembraFilterChanged(grupo: String) {
-        _uiState.value = _uiState.value.copy(grupoSiembraFilter = grupo)
+    fun onUnforcedGrupoSiembraFilterChanged(grupo: String) {
+        _uiState.value = _uiState.value.copy(unforcedGrupoSiembraFilter = grupo)
         updateSuggestions()
-        applyFilters()
+        applyUnforcedFilters()
     }
 
-    fun onLoteFilterChanged(lote: String) {
-        _uiState.value = _uiState.value.copy(loteFilter = lote)
+    fun onUnforcedLoteFilterChanged(lote: String) {
+        _uiState.value = _uiState.value.copy(unforcedLoteFilter = lote)
         updateSuggestions()
-        applyFilters()
+        applyUnforcedFilters()
     }
 
-    fun toggleSoloUltimoMes(activo: Boolean) {
-        _uiState.value = _uiState.value.copy(soloUltimoMes = activo)
+    fun toggleUnforcedSoloUltimoMes(activo: Boolean) {
+        _uiState.value = _uiState.value.copy(unforcedSoloUltimoMes = activo)
         loadDashboardData()
+    }
+
+    // INDEPENDENT FORCED FILTERS
+    fun onForcedSearchQueryChanged(query: String) {
+        _uiState.value = _uiState.value.copy(forcedSearchQuery = query)
+        updateSuggestions()
+        applyForcedFilters()
+    }
+
+    fun onForcedGrupoSiembraFilterChanged(grupo: String) {
+        _uiState.value = _uiState.value.copy(forcedGrupoSiembraFilter = grupo)
+        updateSuggestions()
+        applyForcedFilters()
+    }
+
+    fun onForcedLoteFilterChanged(lote: String) {
+        _uiState.value = _uiState.value.copy(forcedLoteFilter = lote)
+        updateSuggestions()
+        applyForcedFilters()
     }
 
     private fun updateSuggestions() {
         val allBlocks = (_uiState.value.unforcedBlocks + _uiState.value.forcedBlocks)
         
-        val qBlock = _uiState.value.searchQuery.lowercase().trim()
-        val qGrupo = _uiState.value.grupoSiembraFilter.lowercase().trim()
-        val qLote = _uiState.value.loteFilter.lowercase().trim()
+        val qBlock = if (_uiState.value.selectedTab == 4) _uiState.value.forcedSearchQuery.lowercase().trim() else _uiState.value.unforcedSearchQuery.lowercase().trim()
+        val qGrupo = if (_uiState.value.selectedTab == 4) _uiState.value.forcedGrupoSiembraFilter.lowercase().trim() else _uiState.value.unforcedGrupoSiembraFilter.lowercase().trim()
+        val qLote = if (_uiState.value.selectedTab == 4) _uiState.value.forcedLoteFilter.lowercase().trim() else _uiState.value.unforcedLoteFilter.lowercase().trim()
 
         val blockSugg = if (qBlock.isNotEmpty()) {
             allBlocks.map { it.bloque }.distinct().filter { it.lowercase().contains(qBlock) }.take(6)
@@ -214,10 +247,10 @@ class DashboardViewModel(
         )
     }
 
-    private fun applyFilters() {
-        val query = _uiState.value.searchQuery.lowercase().trim()
-        val grupoFilter = _uiState.value.grupoSiembraFilter.lowercase().trim()
-        val loteFilter = _uiState.value.loteFilter.lowercase().trim()
+    private fun applyUnforcedFilters() {
+        val query = _uiState.value.unforcedSearchQuery.lowercase().trim()
+        val grupoFilter = _uiState.value.unforcedGrupoSiembraFilter.lowercase().trim()
+        val loteFilter = _uiState.value.unforcedLoteFilter.lowercase().trim()
 
         val filteredUnforced = _uiState.value.unforcedBlocks.filter { block ->
             val matchesQuery = query.isEmpty() ||
@@ -233,22 +266,6 @@ class DashboardViewModel(
             matchesQuery && matchesGrupo && matchesLote
         }.sortedBy { it.fechaSiembra ?: "9999-99-99" }
 
-        val filteredForced = _uiState.value.forcedBlocks.filter { block ->
-            val matchesQuery = query.isEmpty() ||
-                    block.bloque.lowercase().contains(query) ||
-                    (block.descripcion?.lowercase()?.contains(query) == true) ||
-                    (block.grupoForza?.lowercase()?.contains(query) == true)
-
-            val matchesGrupo = grupoFilter.isEmpty() ||
-                    (block.grupoSiembra?.lowercase()?.contains(grupoFilter) == true)
-
-            val matchesLote = loteFilter.isEmpty() ||
-                    block.loteCalculado.lowercase().contains(loteFilter)
-
-            matchesQuery && matchesGrupo && matchesLote
-        }.sortedBy { it.fechaSiembra ?: "9999-99-99" }
-
-        // Compute Grouping Summaries
         val groupedSiembraUnforced = filteredUnforced.groupBy { it.grupoSiembra ?: "Sin Grupo" }
             .map { (name, bList) ->
                 GroupSummary(
@@ -270,6 +287,33 @@ class DashboardViewModel(
                     blocks = bList
                 )
             }
+
+        _uiState.value = _uiState.value.copy(
+            filteredUnforcedBlocks = filteredUnforced,
+            groupedBySiembraUnforced = groupedSiembraUnforced,
+            groupedByLoteUnforced = groupedLoteUnforced
+        )
+    }
+
+    private fun applyForcedFilters() {
+        val query = _uiState.value.forcedSearchQuery.lowercase().trim()
+        val grupoFilter = _uiState.value.forcedGrupoSiembraFilter.lowercase().trim()
+        val loteFilter = _uiState.value.forcedLoteFilter.lowercase().trim()
+
+        val filteredForced = _uiState.value.forcedBlocks.filter { block ->
+            val matchesQuery = query.isEmpty() ||
+                    block.bloque.lowercase().contains(query) ||
+                    (block.descripcion?.lowercase()?.contains(query) == true) ||
+                    (block.grupoForza?.lowercase()?.contains(query) == true)
+
+            val matchesGrupo = grupoFilter.isEmpty() ||
+                    (block.grupoSiembra?.lowercase()?.contains(grupoFilter) == true)
+
+            val matchesLote = loteFilter.isEmpty() ||
+                    block.loteCalculado.lowercase().contains(loteFilter)
+
+            matchesQuery && matchesGrupo && matchesLote
+        }.sortedBy { it.fechaSiembra ?: "9999-99-99" }
 
         val groupedSiembraForced = filteredForced.groupBy { it.grupoSiembra ?: "Sin Grupo" }
             .map { (name, bList) ->
@@ -294,10 +338,7 @@ class DashboardViewModel(
             }
 
         _uiState.value = _uiState.value.copy(
-            filteredUnforcedBlocks = filteredUnforced,
             filteredForcedBlocks = filteredForced,
-            groupedBySiembraUnforced = groupedSiembraUnforced,
-            groupedByLoteUnforced = groupedLoteUnforced,
             groupedBySiembraForced = groupedSiembraForced,
             groupedByLoteForced = groupedLoteForced
         )
@@ -362,12 +403,12 @@ class DashboardViewModel(
                 isLoading = true
             )
 
+            val weightRes = repository.getLoteWeightAnalytics(rawLote)
             val firstBlock = loteSummary.blocks.firstOrNull()?.bloque
-            val weightRes = if (firstBlock != null) repository.getWeightAnalytics(firstBlock) else null
             val phytoRes = if (firstBlock != null) repository.getPhytosanitaryAnalytics(firstBlock) else null
 
             _uiState.value = _uiState.value.copy(
-                selectedWeightAnalytics = weightRes?.getOrNull(),
+                selectedWeightAnalytics = weightRes.getOrNull(),
                 selectedPhytosanitaryAnalytics = phytoRes?.getOrNull(),
                 isLoading = false
             )

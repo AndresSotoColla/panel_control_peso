@@ -148,6 +148,29 @@ class DashboardRepository(
         }
     }
 
+    suspend fun getLoteWeightAnalytics(lote: String): Result<WeightAnalytics> = withContext(Dispatchers.IO) {
+        if (useDirectDbMode) {
+            val res = directDbRepository.getLoteWeightAnalytics(lote)
+            if (res.isSuccess) {
+                res.getOrNull()?.let { cacheManager?.saveWeightAnalytics("Lote_$lote", it) }
+                return@withContext res
+            }
+        }
+
+        try {
+            val res = RetrofitClient.apiService.getLoteWeightAnalytics(lote)
+            cacheManager?.saveWeightAnalytics("Lote_$lote", res)
+            Result.success(res)
+        } catch (e: Throwable) {
+            val cached = cacheManager?.getWeightAnalytics("Lote_$lote")
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(Exception(e.message ?: "Sin conexión analítica peso lote", e))
+            }
+        }
+    }
+
     suspend fun getPhytosanitaryAnalytics(bloque: String): Result<PhytosanitaryAnalytics> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
             val res = directDbRepository.getPhytosanitaryAnalytics(bloque)

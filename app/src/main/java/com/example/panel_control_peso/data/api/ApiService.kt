@@ -37,6 +37,11 @@ interface ApiService {
         @Path("grupo_siembra") grupoSiembra: String
     ): WeightAnalytics
 
+    @GET("api/analitica_peso_lote/{lote}")
+    suspend fun getLoteWeightAnalytics(
+        @Path("lote") lote: String
+    ): WeightAnalytics
+
     @GET("api/fitosanitario_bloque/{bloque}")
     suspend fun getPhytosanitaryAnalytics(
         @Path("bloque") bloque: String

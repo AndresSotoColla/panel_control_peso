@@ -12,14 +12,14 @@ from sqlalchemy import text
 
 @consultor.route('/api/kpis_dashboard_agricola', methods=['GET'])
 def api_kpis_dashboard_agricola():
-    """Retorna los KPIs globales (Inducción Reciente = últimos 2 meses)."""
+    """Retorna los KPIs globales (Inducción Reciente = finduccion > '2026-06-01' / últimos 2 meses)."""
     try:
         query = text("""
             SELECT 
                 (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS total_bloques_sin_forzar,
                 (SELECT COALESCE(SUM(area), 0) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS area_total_sin_forzar,
                 (SELECT COALESCE(SUM(poblacion), 0) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS poblacion_total_sin_forzar,
-                (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01' AND finduccion IS NOT NULL AND finduccion >= (CURRENT_DATE - INTERVAL '2 months') AND finduccion <= CURRENT_DATE) AS induccion_ultimo_mes,
+                (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE finduccion IS NOT NULL AND finduccion > '2026-06-01') AS induccion_ultimo_mes,
                 (SELECT COUNT(DISTINCT bloque) FROM public.mu_peso_planta) AS total_bloques_muestreados
         """)
         res = db.session.execute(query).fetchone()
@@ -36,7 +36,7 @@ def api_kpis_dashboard_agricola():
 
 @consultor.route('/api/bloques_sin_forzar', methods=['GET'])
 def api_bloques_sin_forzar():
-    """Retorna bloques no forzados ordenados por FECHA SIEMBRA."""
+    """Retorna bloques no forzados u ordenados por FECHA SIEMBRA e inducción reciente."""
     try:
         search = request.args.get('search', '')
         grupo_siembra = request.args.get('grupo_siembra', '')
@@ -60,7 +60,9 @@ def api_bloques_sin_forzar():
             params['lote'] = lote
 
         if filtro_ultimo_mes:
-            additional_filter += " AND bd.finduccion IS NOT NULL AND bd.finduccion >= (CURRENT_DATE - INTERVAL '2 months') AND bd.finduccion <= CURRENT_DATE"
+            base_where = "WHERE bd.finduccion IS NOT NULL AND bd.finduccion > '2026-06-01'"
+        else:
+            base_where = "WHERE bd.grupo_forza IS NULL AND bd.fecha_siembra > '2025-01-01'"
 
         query = text(f"""
             SELECT 
@@ -73,7 +75,7 @@ def api_bloques_sin_forzar():
                     ELSE NULL 
                 END AS dias_hasta_induccion
             FROM public.blocks_desarrollo bd
-            WHERE bd.grupo_forza IS NULL AND bd.fecha_siembra > '2025-01-01' {additional_filter}
+            {base_where} {additional_filter}
             ORDER BY bd.fecha_siembra ASC NULLS LAST, bd.bloque ASC
             LIMIT :limit;
         """)
@@ -233,23 +235,32 @@ def api_analitica_peso_bloque(bloque):
 
 @consultor.route('/api/analitica_peso_grupo/<grupo_siembra>', methods=['GET'])
 def api_analitica_peso_grupo(grupo_siembra):
-    """NUEVA API: Calcula la curva de crecimiento CONSOLIDADA por GRUPO DE SIEMBRA."""
+    """Calcula la curva de crecimiento PROMEDIO POR EDAD (meses) agregando todos los bloques del GRUPO."""
     try:
         query = text("""
+            WITH bloque_curvas AS (
+                SELECT 
+                    mp.bloque,
+                    ROUND(((mp.fecha - bd.fecha_siembra) / 30.4375)::numeric, 1) AS edad_meses,
+                    ROUND(AVG(mp.peso)::numeric, 1) AS peso_promedio_bloque,
+                    MIN(mp.fecha) AS fecha_muestreo
+                FROM public.mu_peso_planta mp
+                JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
+                WHERE bd.grupo_siembra = :grupo_siembra
+                GROUP BY mp.bloque, mp.fecha, bd.fecha_siembra
+            )
             SELECT 
-                mp.fecha,
-                COUNT(DISTINCT mp.bloque) as cantidad_bloques,
-                COUNT(*) as cantidad_muestras,
-                ROUND(AVG(mp.peso)::numeric, 1) as peso_promedio,
-                ROUND(STDDEV_SAMP(mp.peso)::numeric, 1) as desviacion_estandar,
-                ROUND(MIN(mp.peso)::numeric, 1) as peso_min,
-                ROUND(MAX(mp.peso)::numeric, 1) as peso_max,
-                ROUND(AVG((mp.fecha - bd.fecha_siembra) / 30.4375)::numeric, 1) as edad_meses
-            FROM public.mu_peso_planta mp
-            JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
-            WHERE bd.grupo_siembra = :grupo_siembra
-            GROUP BY mp.fecha
-            ORDER BY mp.fecha ASC;
+                edad_meses,
+                COUNT(DISTINCT bloque) AS cantidad_bloques,
+                COUNT(*) AS cantidad_muestras,
+                ROUND(AVG(peso_promedio_bloque)::numeric, 1) AS peso_promedio,
+                ROUND(STDDEV_SAMP(peso_promedio_bloque)::numeric, 1) AS desviacion_estandar,
+                ROUND(MIN(peso_promedio_bloque)::numeric, 1) AS peso_min,
+                ROUND(MAX(peso_promedio_bloque)::numeric, 1) AS peso_max,
+                MIN(fecha_muestreo)::text AS fecha
+            FROM bloque_curvas
+            GROUP BY edad_meses
+            ORDER BY edad_meses ASC;
         """)
         result = db.session.execute(query, {'grupo_siembra': grupo_siembra})
         rows = result.fetchall()
@@ -276,12 +287,7 @@ def api_analitica_peso_grupo(grupo_siembra):
         peso_ini = round(float(df.iloc[0]['peso_promedio']), 1)
         peso_fin = round(float(df.iloc[-1]['peso_promedio']), 1)
 
-        d1 = datetime.strptime(df.iloc[0]['fecha'], '%Y-%m-%d')
-        d2 = datetime.strptime(df.iloc[-1]['fecha'], '%Y-%m-%d')
-        dias = (d2 - d1).days
-
         ganancia = round(peso_fin - peso_ini, 1)
-        tasa_diaria = round(ganancia / dias, 1) if dias > 0 else 0.0
         pct_incremento = round((ganancia / peso_ini * 100), 1) if peso_ini > 0 else 0.0
 
         query_std_gen = text("""
@@ -293,28 +299,104 @@ def api_analitica_peso_grupo(grupo_siembra):
         std_gen_res = db.session.execute(query_std_gen, {'grupo_siembra': grupo_siembra}).fetchone()
         std_general = float(std_gen_res.std_gen or 0.0) if std_gen_res else 0.0
 
-        if tasa_diaria > 5.0:
-            tendencia = "CRECIENDO_ACELERADO"
-        elif tasa_diaria > 0.5:
-            tendencia = "CRECIENDO_ESTABLE"
-        elif tasa_diaria >= -0.5:
-            tendencia = "ESTABLE"
-        else:
-            tendencia = "DISMINUYENDO"
-
         return jsonify({
             "bloque": f"Grupo: {grupo_siembra}",
             "total_muestreos": int(df['cantidad_muestras'].sum()),
             "fecha_primer_muestreo": df.iloc[0]['fecha'],
             "fecha_ultimo_muestreo": df.iloc[-1]['fecha'],
-            "dias_monitoreados": dias,
+            "dias_monitoreados": 0,
             "desviacion_estandar_general": std_general,
             "peso_inicial_g": peso_ini,
             "peso_actual_g": peso_fin,
             "ganancia_total_g": ganancia,
-            "tasa_crecimiento_diario_g_dia": tasa_diaria,
+            "tasa_crecimiento_diario_g_dia": 0.0,
             "porcentaje_incremento": pct_incremento,
-            "tendencia": tendencia,
+            "tendencia": "CRECIENDO_ESTABLE",
+            "serie_historica": df.to_dict(orient='records')
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@consultor.route('/api/analitica_peso_lote/<lote>', methods=['GET'])
+def api_analitica_peso_lote(lote):
+    """Calcula la curva de crecimiento PROMEDIO POR EDAD (meses) agregando todos los bloques del LOTE."""
+    try:
+        query = text("""
+            WITH bloque_curvas AS (
+                SELECT 
+                    mp.bloque,
+                    ROUND(((mp.fecha - bd.fecha_siembra) / 30.4375)::numeric, 1) AS edad_meses,
+                    ROUND(AVG(mp.peso)::numeric, 1) AS peso_promedio_bloque,
+                    MIN(mp.fecha) AS fecha_muestreo
+                FROM public.mu_peso_planta mp
+                JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
+                WHERE SUBSTRING(bd.bloque, 3, 2) = :lote
+                GROUP BY mp.bloque, mp.fecha, bd.fecha_siembra
+            )
+            SELECT 
+                edad_meses,
+                COUNT(DISTINCT bloque) AS cantidad_bloques,
+                COUNT(*) AS cantidad_muestras,
+                ROUND(AVG(peso_promedio_bloque)::numeric, 1) AS peso_promedio,
+                ROUND(STDDEV_SAMP(peso_promedio_bloque)::numeric, 1) AS desviacion_estandar,
+                ROUND(MIN(peso_promedio_bloque)::numeric, 1) AS peso_min,
+                ROUND(MAX(peso_promedio_bloque)::numeric, 1) AS peso_max,
+                MIN(fecha_muestreo)::text AS fecha
+            FROM bloque_curvas
+            GROUP BY edad_meses
+            ORDER BY edad_meses ASC;
+        """)
+        result = db.session.execute(query, {'lote': lote})
+        rows = result.fetchall()
+
+        if not rows:
+            return jsonify({
+                "bloque": f"Lote {lote}",
+                "total_muestreos": 0,
+                "desviacion_estandar_general": 0.0,
+                "peso_inicial_g": 0.0,
+                "peso_actual_g": 0.0,
+                "ganancia_total_g": 0.0,
+                "tasa_crecimiento_diario_g_dia": 0.0,
+                "porcentaje_incremento": 0.0,
+                "tendencia": "SIN_DATOS",
+                "serie_historica": []
+            })
+
+        df = pd.DataFrame(rows, columns=result.keys())
+        df['desviacion_estandar'] = df['desviacion_estandar'].fillna(0.0).astype(float)
+        df['edad_meses'] = df['edad_meses'].fillna(0.0).astype(float)
+        df['fecha'] = df['fecha'].astype(str)
+
+        peso_ini = round(float(df.iloc[0]['peso_promedio']), 1)
+        peso_fin = round(float(df.iloc[-1]['peso_promedio']), 1)
+
+        ganancia = round(peso_fin - peso_ini, 1)
+        pct_incremento = round((ganancia / peso_ini * 100), 1) if peso_ini > 0 else 0.0
+
+        query_std_gen = text("""
+            SELECT ROUND(STDDEV_SAMP(mp.peso)::numeric, 1) as std_gen 
+            FROM public.mu_peso_planta mp
+            JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
+            WHERE SUBSTRING(bd.bloque, 3, 2) = :lote;
+        """)
+        std_gen_res = db.session.execute(query_std_gen, {'lote': lote}).fetchone()
+        std_general = float(std_gen_res.std_gen or 0.0) if std_gen_res else 0.0
+
+        return jsonify({
+            "bloque": f"Lote {lote}",
+            "total_muestreos": int(df['cantidad_muestras'].sum()),
+            "fecha_primer_muestreo": df.iloc[0]['fecha'],
+            "fecha_ultimo_muestreo": df.iloc[-1]['fecha'],
+            "dias_monitoreados": 0,
+            "desviacion_estandar_general": std_general,
+            "peso_inicial_g": peso_ini,
+            "peso_actual_g": peso_fin,
+            "ganancia_total_g": ganancia,
+            "tasa_crecimiento_diario_g_dia": 0.0,
+            "porcentaje_incremento": pct_incremento,
+            "tendencia": "CRECIENDO_ESTABLE",
             "serie_historica": df.to_dict(orient='records')
         })
     except Exception as e:

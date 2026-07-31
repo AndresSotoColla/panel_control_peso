@@ -39,31 +39,20 @@ fun DashboardScreen(
     viewModel: DashboardViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
-    var showServerDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            "Control de Peso & Forzamiento",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White
-                        )
-                        Text(
-                            if (state.isDirectDbMode) "Conexión Directa AWS RDS" else "Servidor API REST (interno.control.agricolaguapa.com)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = AgroAccent
-                        )
-                    }
+                    Text(
+                        "Control de Peso & Forzamiento",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadDashboardData() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Actualizar", tint = Color.White)
-                    }
-                    IconButton(onClick = { showServerDialog = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configuración", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AgroGreenDark)
@@ -153,8 +142,7 @@ fun DashboardScreen(
                 if (state.errorMessage != null) {
                     ErrorBanner(
                         message = state.errorMessage!!,
-                        onRetry = { viewModel.loadDashboardData() },
-                        onConfigServer = { showServerDialog = true }
+                        onRetry = { viewModel.loadDashboardData() }
                     )
                 }
 
@@ -176,22 +164,6 @@ fun DashboardScreen(
                         3 -> DetalleBloqueTabContent(state = state, viewModel = viewModel)
                     }
                 }
-            }
-
-            if (showServerDialog) {
-                ServerUrlDialog(
-                    currentUrl = state.currentServerUrl,
-                    isDirectDbMode = state.isDirectDbMode,
-                    onDismiss = { showServerDialog = false },
-                    onToggleDirectDb = { useDirect ->
-                        viewModel.toggleConnectionMode(useDirect)
-                        showServerDialog = false
-                    },
-                    onConfirmApiUrl = { newUrl ->
-                        viewModel.setServerUrl(newUrl)
-                        showServerDialog = false
-                    }
-                )
             }
         }
     }
@@ -280,8 +252,7 @@ fun CleanKpiCard(
 @Composable
 fun ErrorBanner(
     message: String,
-    onRetry: () -> Unit,
-    onConfigServer: () -> Unit
+    onRetry: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroDanger.copy(alpha = 0.15f)),
@@ -301,9 +272,6 @@ fun ErrorBanner(
             Column(modifier = Modifier.weight(1f)) {
                 Text("Aviso de Conexión", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color.White)
                 Text(message, style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-            }
-            TextButton(onClick = onConfigServer) {
-                Text("Configuración", color = AgroAccent, fontSize = 11.sp)
             }
             IconButton(onClick = onRetry) {
                 Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White)
@@ -353,37 +321,37 @@ fun SinForzarTabContent(
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         
-        // View Mode Selector: Bloque, Grupo Siembra, Lote
+        // Independent View Mode Selector for Sin Forzar
         ViewModeSelector(
-            selectedMode = state.viewMode,
-            onModeSelected = { viewModel.setViewMode(it) }
+            selectedMode = state.unforcedViewMode,
+            onModeSelected = { viewModel.setUnforcedViewMode(it) }
         )
 
-        // Dual Inputs with Live Auto-Suggestions
+        // Independent Dual Inputs with Live Auto-Suggestions for Sin Forzar
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             AutoSuggestSearchField(
-                value = state.searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                value = state.unforcedSearchQuery,
+                onValueChange = { viewModel.onUnforcedSearchQueryChanged(it) },
                 placeholder = "Buscar Bloque...",
                 suggestions = state.bloqueSuggestions,
-                onSuggestionSelected = { viewModel.onSearchQueryChanged(it) },
+                onSuggestionSelected = { viewModel.onUnforcedSearchQueryChanged(it) },
                 modifier = Modifier.weight(1f)
             )
 
             AutoSuggestSearchField(
-                value = if (state.viewMode == ViewMode.LOTE) state.loteFilter else state.grupoSiembraFilter,
+                value = if (state.unforcedViewMode == ViewMode.LOTE) state.unforcedLoteFilter else state.unforcedGrupoSiembraFilter,
                 onValueChange = {
-                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
-                    else viewModel.onGrupoSiembraFilterChanged(it)
+                    if (state.unforcedViewMode == ViewMode.LOTE) viewModel.onUnforcedLoteFilterChanged(it)
+                    else viewModel.onUnforcedGrupoSiembraFilterChanged(it)
                 },
-                placeholder = if (state.viewMode == ViewMode.LOTE) "Filtrar Lote..." else "Grupo Siembra...",
-                suggestions = if (state.viewMode == ViewMode.LOTE) state.loteSuggestions else state.grupoSiembraSuggestions,
+                placeholder = if (state.unforcedViewMode == ViewMode.LOTE) "Filtrar Lote..." else "Grupo Siembra...",
+                suggestions = if (state.unforcedViewMode == ViewMode.LOTE) state.loteSuggestions else state.grupoSiembraSuggestions,
                 onSuggestionSelected = {
-                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
-                    else viewModel.onGrupoSiembraFilterChanged(it)
+                    if (state.unforcedViewMode == ViewMode.LOTE) viewModel.onUnforcedLoteFilterChanged(it)
+                    else viewModel.onUnforcedGrupoSiembraFilterChanged(it)
                 },
                 modifier = Modifier.weight(1f)
             )
@@ -396,9 +364,9 @@ fun SinForzarTabContent(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             FilterChip(
-                selected = state.soloUltimoMes,
-                onClick = { viewModel.toggleSoloUltimoMes(!state.soloUltimoMes) },
-                label = { Text("Inducción Últimos 2 Meses", fontSize = 10.sp, color = if (state.soloUltimoMes) Color.Black else Color.White) },
+                selected = state.unforcedSoloUltimoMes,
+                onClick = { viewModel.toggleUnforcedSoloUltimoMes(!state.unforcedSoloUltimoMes) },
+                label = { Text("Inducción Últimos 2 Meses", fontSize = 10.sp, color = if (state.unforcedSoloUltimoMes) Color.Black else Color.White) },
                 colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AgroAccent, containerColor = AgroCardBg)
             )
             Text(
@@ -408,12 +376,12 @@ fun SinForzarTabContent(
             )
         }
 
-        // Dynamic Content Body based on ViewMode
+        // Dynamic Content Body based on unforcedViewMode
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            when (state.viewMode) {
+            when (state.unforcedViewMode) {
                 ViewMode.BLOQUE -> {
                     items(state.filteredUnforcedBlocks) { block ->
                         CleanBlockCardItem(
@@ -463,37 +431,37 @@ fun ForzadosTabContent(
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
 
-        // View Mode Selector: Bloque, Grupo Siembra, Lote
+        // Independent View Mode Selector for Forzados
         ViewModeSelector(
-            selectedMode = state.viewMode,
-            onModeSelected = { viewModel.setViewMode(it) }
+            selectedMode = state.forcedViewMode,
+            onModeSelected = { viewModel.setForcedViewMode(it) }
         )
 
-        // Dual Inputs with Live Auto-Suggestions
+        // Independent Dual Inputs with Live Auto-Suggestions for Forzados
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             AutoSuggestSearchField(
-                value = state.searchQuery,
-                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                value = state.forcedSearchQuery,
+                onValueChange = { viewModel.onForcedSearchQueryChanged(it) },
                 placeholder = "Buscar Bloque...",
                 suggestions = state.bloqueSuggestions,
-                onSuggestionSelected = { viewModel.onSearchQueryChanged(it) },
+                onSuggestionSelected = { viewModel.onForcedSearchQueryChanged(it) },
                 modifier = Modifier.weight(1f)
             )
 
             AutoSuggestSearchField(
-                value = if (state.viewMode == ViewMode.LOTE) state.loteFilter else state.grupoSiembraFilter,
+                value = if (state.forcedViewMode == ViewMode.LOTE) state.forcedLoteFilter else state.forcedGrupoSiembraFilter,
                 onValueChange = {
-                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
-                    else viewModel.onGrupoSiembraFilterChanged(it)
+                    if (state.forcedViewMode == ViewMode.LOTE) viewModel.onForcedLoteFilterChanged(it)
+                    else viewModel.onForcedGrupoSiembraFilterChanged(it)
                 },
-                placeholder = if (state.viewMode == ViewMode.LOTE) "Filtrar Lote..." else "Grupo Siembra...",
-                suggestions = if (state.viewMode == ViewMode.LOTE) state.loteSuggestions else state.grupoSiembraSuggestions,
+                placeholder = if (state.forcedViewMode == ViewMode.LOTE) "Filtrar Lote..." else "Grupo Siembra...",
+                suggestions = if (state.forcedViewMode == ViewMode.LOTE) state.loteSuggestions else state.grupoSiembraSuggestions,
                 onSuggestionSelected = {
-                    if (state.viewMode == ViewMode.LOTE) viewModel.onLoteFilterChanged(it)
-                    else viewModel.onGrupoSiembraFilterChanged(it)
+                    if (state.forcedViewMode == ViewMode.LOTE) viewModel.onForcedLoteFilterChanged(it)
+                    else viewModel.onForcedGrupoSiembraFilterChanged(it)
                 },
                 modifier = Modifier.weight(1f)
             )
@@ -510,7 +478,7 @@ fun ForzadosTabContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            when (state.viewMode) {
+            when (state.forcedViewMode) {
                 ViewMode.BLOQUE -> {
                     items(state.filteredForcedBlocks) { block ->
                         CleanForcedBlockCardItem(
@@ -879,7 +847,7 @@ fun PesoTabContent(
                 }
                 item {
                     Text(
-                        "Historial de Pesajes y Desviación Estándar (${analytics.serieHistorica.size} muestreos)",
+                        "Curva Promedio por Edad en Meses (${analytics.serieHistorica.size} puntos)",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = Color.White,
                         modifier = Modifier.padding(vertical = 4.dp)
@@ -920,7 +888,7 @@ fun TrendSummaryCard(analytics: WeightAnalytics) {
                 Text("Tendencia de Crecimiento", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
                 Text(trendText, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
                 Text(
-                    "Tasa ganancia: ${format1Dec(analytics.tasaCrecimientoDiarioGDia)} g/día | Desv. Estándar: σ = ${format1Dec(analytics.desviacionEstandarGeneral)} g",
+                    "Desv. Estándar: σ = ${format1Dec(analytics.desviacionEstandarGeneral)} g | Muestreos: ${analytics.totalMuestreos}",
                     style = MaterialTheme.typography.bodySmall,
                     color = AgroAccent
                 )
@@ -975,9 +943,9 @@ fun WeightSeriesItem(entry: WeightSeriesEntry) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(entry.fecha, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                Text(if (entry.fecha.isNotEmpty()) entry.fecha else "Edad: ${format1Dec(entry.edadMeses)} m", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
                 Text(
-                    "Edad: ${format1Dec(entry.edadMeses)} meses (${entry.cantidadMuestras} plantas)",
+                    "Edad Planta: ${format1Dec(entry.edadMeses)} meses (${entry.cantidadMuestras} muestras)",
                     style = MaterialTheme.typography.labelSmall,
                     color = AgroAccent
                 )
@@ -1299,104 +1267,6 @@ fun BlockSelectorHeader(
             }
         }
     }
-}
-
-@Composable
-fun ServerUrlDialog(
-    currentUrl: String,
-    isDirectDbMode: Boolean,
-    onDismiss: () -> Unit,
-    onToggleDirectDb: (Boolean) -> Unit,
-    onConfirmApiUrl: (String) -> Unit
-) {
-    var text by remember { mutableStateOf(currentUrl) }
-    var useDirect by remember { mutableStateOf(isDirectDbMode) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Modo de Conexión (Global)", color = Color.White) },
-        text = {
-            Column {
-                Text(
-                    "Selecciona el modo de consulta a los datos:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AgroTextMuted
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = if (!useDirect) AgroAccent.copy(alpha = 0.2f) else AgroCardBg),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { useDirect = false }
-                        .border(
-                            width = if (!useDirect) 2.dp else 0.dp,
-                            color = if (!useDirect) AgroAccent else Color.Transparent,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("Servidor API REST (interno.control.agricolaguapa.com)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
-                        Text("Conexión oficial de producción.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                        if (!useDirect) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            OutlinedTextField(
-                                value = text,
-                                onValueChange = { text = it },
-                                singleLine = true,
-                                label = { Text("URL de la API", color = AgroTextMuted) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = if (useDirect) AgroAccent.copy(alpha = 0.2f) else AgroCardBg),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { useDirect = true }
-                        .border(
-                            width = if (useDirect) 2.dp else 0.dp,
-                            color = if (useDirect) AgroAccent else Color.Transparent,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("Conexión Directa AWS RDS (Global)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
-                        Text("Conexión directa por JDBC a la base de datos PostgreSQL.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (useDirect) {
-                        onToggleDirectDb(true)
-                    } else {
-                        onConfirmApiUrl(text)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AgroAccent)
-            ) {
-                Text("Guardar Modo", color = Color.Black)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Color.White)
-            }
-        },
-        containerColor = AgroGreenDark
-    )
 }
 
 fun format1Dec(value: Double?): String {

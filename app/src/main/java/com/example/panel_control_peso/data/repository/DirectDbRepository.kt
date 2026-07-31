@@ -58,10 +58,7 @@ class DirectDbRepository {
                 val stmt2 = conn.prepareStatement("""
                     SELECT COUNT(*) as induccion_ultimo_mes
                     FROM public.blocks_desarrollo
-                    WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01'
-                      AND finduccion IS NOT NULL
-                      AND finduccion >= (CURRENT_DATE - INTERVAL '2 months')
-                      AND finduccion <= CURRENT_DATE;
+                    WHERE finduccion IS NOT NULL AND finduccion > '2026-06-01';
                 """.trimIndent())
                 val rs2 = stmt2.executeQuery()
                 var induccionUltimoMes = 0
@@ -97,6 +94,12 @@ class DirectDbRepository {
     suspend fun getUnforcedBlocks(search: String? = null, grupoSiembra: String? = null, lote: String? = null, ultimoMes: Boolean = false): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         try {
             getConnection().use { conn ->
+                val baseWhere = if (ultimoMes) {
+                    "WHERE finduccion IS NOT NULL AND finduccion > '2026-06-01'"
+                } else {
+                    "WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01'"
+                }
+
                 var sql = """
                     SELECT 
                         blocknumber, descripcion, desarrollo, bloque, poblacion, area, drenajes, 
@@ -104,7 +107,7 @@ class DirectDbRepository {
                         mediana_fecha_cosecha, kilos_cosechados, frutas, dias_preforza, dias_posforza,
                         SUBSTRING(bloque, 3, 2) AS lote
                     FROM public.blocks_desarrollo
-                    WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01'
+                    $baseWhere
                 """.trimIndent()
 
                 val paramList = mutableListOf<String>()
@@ -123,10 +126,6 @@ class DirectDbRepository {
                 if (!lote.isNull_or_empty()) {
                     sql += " AND SUBSTRING(bloque, 3, 2) = ?"
                     paramList.add(lote!!)
-                }
-
-                if (ultimoMes) {
-                    sql += " AND finduccion IS NOT NULL AND finduccion >= (CURRENT_DATE - INTERVAL '2 months') AND finduccion <= CURRENT_DATE"
                 }
 
                 sql += " ORDER BY fecha_siembra ASC NULLS LAST, bloque ASC LIMIT 300;"
@@ -373,31 +372,38 @@ class DirectDbRepository {
         try {
             getConnection().use { conn ->
                 val stmt = conn.prepareStatement("""
+                    WITH bloque_curvas AS (
+                        SELECT 
+                            mp.bloque,
+                            ROUND(((mp.fecha - bd.fecha_siembra) / 30.4375)::numeric, 1) AS edad_meses,
+                            ROUND(AVG(mp.peso)::numeric, 1) AS peso_promedio_bloque,
+                            MIN(mp.fecha) AS fecha_muestreo
+                        FROM public.mu_peso_planta mp
+                        JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
+                        WHERE bd.grupo_siembra = ?
+                        GROUP BY mp.bloque, mp.fecha, bd.fecha_siembra
+                    )
                     SELECT 
-                        mp.fecha, 
-                        COUNT(DISTINCT mp.bloque) as cantidad_bloques,
-                        COUNT(*) as cantidad_muestras,
-                        ROUND(AVG(mp.peso)::numeric, 1) as peso_promedio,
-                        ROUND(STDDEV_SAMP(mp.peso)::numeric, 1) as desviacion_estandar,
-                        ROUND(MIN(mp.peso)::numeric, 1) as peso_min,
-                        ROUND(MAX(mp.peso)::numeric, 1) as peso_max,
-                        ROUND(AVG((mp.fecha - bd.fecha_siembra) / 30.4375)::numeric, 1) as edad_meses
-                    FROM public.mu_peso_planta mp
-                    JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
-                    WHERE bd.grupo_siembra = ?
-                    GROUP BY mp.fecha
-                    ORDER BY mp.fecha ASC;
+                        edad_meses,
+                        COUNT(DISTINCT bloque) AS cantidad_bloques,
+                        COUNT(*) AS cantidad_muestras,
+                        ROUND(AVG(peso_promedio_bloque)::numeric, 1) AS peso_promedio,
+                        ROUND(STDDEV_SAMP(peso_promedio_bloque)::numeric, 1) AS desviacion_estandar,
+                        ROUND(MIN(peso_promedio_bloque)::numeric, 1) AS peso_min,
+                        ROUND(MAX(peso_promedio_bloque)::numeric, 1) AS peso_max,
+                        MIN(fecha_muestreo)::text AS fecha
+                    FROM bloque_curvas
+                    GROUP BY edad_meses
+                    ORDER BY edad_meses ASC;
                 """.trimIndent())
                 stmt.setString(1, grupoSiembra)
                 val rs = stmt.executeQuery()
 
                 val series = mutableListOf<WeightSeriesEntry>()
-                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
                 while (rs.next()) {
                     series.add(
                         WeightSeriesEntry(
-                            fecha = rs.getDate("fecha")?.toString() ?: "",
+                            fecha = rs.getString("fecha") ?: "",
                             cantidadMuestras = rs.getInt("cantidad_muestras"),
                             pesoPromedio = round(rs.getDouble("peso_promedio") * 10) / 10.0,
                             desviacionEstandar = round(rs.getDouble("desviacion_estandar") * 10) / 10.0,
@@ -415,33 +421,8 @@ class DirectDbRepository {
                 val first = series.first()
                 val last = series.last()
 
-                val d1 = try { sdf.parse(first.fecha) } catch (e: Exception) { null }
-                val d2 = try { sdf.parse(last.fecha) } catch (e: Exception) { null }
-
-                val dias = if (d1 != null && d2 != null) {
-                    ((d2.time - d1.time) / (1000 * 60 * 60 * 24)).toInt()
-                } else 0
-
                 val ganancia = round((last.pesoPromedio - first.pesoPromedio) * 10) / 10.0
-                val tasaDiaria = if (dias > 0) round((ganancia / dias) * 10) / 10.0 else 0.0
                 val pctIncremento = if (first.pesoPromedio > 0) round((ganancia / first.pesoPromedio * 100) * 10) / 10.0 else 0.0
-
-                val stmtStdGen = conn.prepareStatement("""
-                    SELECT ROUND(STDDEV_SAMP(mp.peso)::numeric, 1) as std_gen 
-                    FROM public.mu_peso_planta mp
-                    JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
-                    WHERE bd.grupo_siembra = ?;
-                """.trimIndent())
-                stmtStdGen.setString(1, grupoSiembra)
-                val rsStdGen = stmtStdGen.executeQuery()
-                val stdGen = if (rsStdGen.next()) round(rsStdGen.getDouble("std_gen") * 10) / 10.0 else 0.0
-
-                val tendencia = when {
-                    tasaDiaria > 5.0 -> "CRECIENDO_ACELERADO"
-                    tasaDiaria > 0.5 -> "CRECIENDO_ESTABLE"
-                    tasaDiaria >= -0.5 -> "ESTABLE"
-                    else -> "DISMINUYENDO"
-                }
 
                 val totalMuestras = series.sumOf { it.cantidadMuestras }
 
@@ -451,20 +432,101 @@ class DirectDbRepository {
                         totalMuestreos = totalMuestras,
                         fechaPrimerMuestreo = first.fecha,
                         fechaUltimoMuestreo = last.fecha,
-                        diasMonitoreados = dias,
-                        desviacionEstandarGeneral = stdGen,
+                        diasMonitoreados = 0,
+                        desviacionEstandarGeneral = 0.0,
                         pesoInicialG = first.pesoPromedio,
                         pesoActualG = last.pesoPromedio,
                         gananciaTotalG = ganancia,
-                        tasaCrecimientoDiarioGDia = tasaDiaria,
+                        tasaCrecimientoDiarioGDia = 0.0,
                         porcentajeIncremento = pctIncremento,
-                        tendencia = tendencia,
+                        tendencia = "CRECIENDO_ESTABLE",
                         serieHistorica = series
                     )
                 )
             }
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error al consultar analítica del grupo", e))
+            Result.failure(Exception(e.message ?: "Error analítica grupo", e))
+        }
+    }
+
+    suspend fun getLoteWeightAnalytics(lote: String): Result<WeightAnalytics> = withContext(Dispatchers.IO) {
+        try {
+            getConnection().use { conn ->
+                val stmt = conn.prepareStatement("""
+                    WITH bloque_curvas AS (
+                        SELECT 
+                            mp.bloque,
+                            ROUND(((mp.fecha - bd.fecha_siembra) / 30.4375)::numeric, 1) AS edad_meses,
+                            ROUND(AVG(mp.peso)::numeric, 1) AS peso_promedio_bloque,
+                            MIN(mp.fecha) AS fecha_muestreo
+                        FROM public.mu_peso_planta mp
+                        JOIN public.blocks_desarrollo bd ON mp.bloque = bd.bloque
+                        WHERE SUBSTRING(bd.bloque, 3, 2) = ?
+                        GROUP BY mp.bloque, mp.fecha, bd.fecha_siembra
+                    )
+                    SELECT 
+                        edad_meses,
+                        COUNT(DISTINCT bloque) AS cantidad_bloques,
+                        COUNT(*) AS cantidad_muestras,
+                        ROUND(AVG(peso_promedio_bloque)::numeric, 1) AS peso_promedio,
+                        ROUND(STDDEV_SAMP(peso_promedio_bloque)::numeric, 1) AS desviacion_estandar,
+                        ROUND(MIN(peso_promedio_bloque)::numeric, 1) AS peso_min,
+                        ROUND(MAX(peso_promedio_bloque)::numeric, 1) AS peso_max,
+                        MIN(fecha_muestreo)::text AS fecha
+                    FROM bloque_curvas
+                    GROUP BY edad_meses
+                    ORDER BY edad_meses ASC;
+                """.trimIndent())
+                stmt.setString(1, lote)
+                val rs = stmt.executeQuery()
+
+                val series = mutableListOf<WeightSeriesEntry>()
+                while (rs.next()) {
+                    series.add(
+                        WeightSeriesEntry(
+                            fecha = rs.getString("fecha") ?: "",
+                            cantidadMuestras = rs.getInt("cantidad_muestras"),
+                            pesoPromedio = round(rs.getDouble("peso_promedio") * 10) / 10.0,
+                            desviacionEstandar = round(rs.getDouble("desviacion_estandar") * 10) / 10.0,
+                            edadMeses = round(rs.getDouble("edad_meses") * 10) / 10.0,
+                            pesoMin = round(rs.getDouble("peso_min") * 10) / 10.0,
+                            pesoMax = round(rs.getDouble("peso_max") * 10) / 10.0
+                        )
+                    )
+                }
+
+                if (series.isEmpty()) {
+                    return@withContext Result.success(WeightAnalytics(bloque = "Lote $lote"))
+                }
+
+                val first = series.first()
+                val last = series.last()
+
+                val ganancia = round((last.pesoPromedio - first.pesoPromedio) * 10) / 10.0
+                val pctIncremento = if (first.pesoPromedio > 0) round((ganancia / first.pesoPromedio * 100) * 10) / 10.0 else 0.0
+
+                val totalMuestras = series.sumOf { it.cantidadMuestras }
+
+                Result.success(
+                    WeightAnalytics(
+                        bloque = "Lote $lote",
+                        totalMuestreos = totalMuestras,
+                        fechaPrimerMuestreo = first.fecha,
+                        fechaUltimoMuestreo = last.fecha,
+                        diasMonitoreados = 0,
+                        desviacionEstandarGeneral = 0.0,
+                        pesoInicialG = first.pesoPromedio,
+                        pesoActualG = last.pesoPromedio,
+                        gananciaTotalG = ganancia,
+                        tasaCrecimientoDiarioGDia = 0.0,
+                        porcentajeIncremento = pctIncremento,
+                        tendencia = "CRECIENDO_ESTABLE",
+                        serieHistorica = series
+                    )
+                )
+            }
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error analítica lote", e))
         }
     }
 
