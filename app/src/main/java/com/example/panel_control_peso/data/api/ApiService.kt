@@ -16,7 +16,7 @@ interface ApiService {
         @Query("grupo_siembra") grupoSiembra: String? = null,
         @Query("lote") lote: String? = null,
         @Query("ultimo_mes") ultimoMes: Boolean? = null,
-        @Query("limit") limit: Int = 200
+        @Query("limit") limit: Int = 300
     ): List<UnforcedBlock>
 
     @GET("api/bloques_forzados")
@@ -24,12 +24,17 @@ interface ApiService {
         @Query("search") search: String? = null,
         @Query("grupo_siembra") grupoSiembra: String? = null,
         @Query("lote") lote: String? = null,
-        @Query("limit") limit: Int = 200
+        @Query("limit") limit: Int = 300
     ): List<UnforcedBlock>
 
     @GET("api/analitica_peso_bloque/{bloque}")
     suspend fun getWeightAnalytics(
         @Path("bloque") bloque: String
+    ): WeightAnalytics
+
+    @GET("api/analitica_peso_grupo/{grupo_siembra}")
+    suspend fun getGroupWeightAnalytics(
+        @Path("grupo_siembra") grupoSiembra: String
     ): WeightAnalytics
 
     @GET("api/fitosanitario_bloque/{bloque}")

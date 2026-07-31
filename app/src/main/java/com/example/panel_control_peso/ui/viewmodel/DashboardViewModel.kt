@@ -48,6 +48,8 @@ data class DashboardUiState(
     val loteSuggestions: List<String> = emptyList(),
 
     val selectedBlockSummary: BlockSummary? = null,
+    val selectedGroupSummary: GroupSummary? = null,
+    val selectedLoteSummary: LoteSummary? = null,
     val selectedWeightAnalytics: WeightAnalytics? = null,
     val selectedPhytosanitaryAnalytics: PhytosanitaryAnalytics? = null,
     
@@ -305,6 +307,10 @@ class DashboardViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 selectedBlockName = bloque,
+                selectedGroupName = "",
+                selectedLoteName = "",
+                selectedGroupSummary = null,
+                selectedLoteSummary = null,
                 isLoading = true
             )
 
@@ -322,18 +328,49 @@ class DashboardViewModel(
     }
 
     fun selectGroup(groupSummary: GroupSummary) {
-        _uiState.value = _uiState.value.copy(selectedGroupName = groupSummary.name)
-        val firstBlock = groupSummary.blocks.firstOrNull()?.bloque
-        if (firstBlock != null) {
-            selectBlock(firstBlock)
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                selectedGroupName = groupSummary.name,
+                selectedGroupSummary = groupSummary,
+                selectedBlockName = "Grupo: ${groupSummary.name}",
+                selectedLoteName = "",
+                selectedLoteSummary = null,
+                isLoading = true
+            )
+
+            val weightRes = repository.getGroupWeightAnalytics(groupSummary.name)
+            val firstBlock = groupSummary.blocks.firstOrNull()?.bloque
+            val phytoRes = if (firstBlock != null) repository.getPhytosanitaryAnalytics(firstBlock) else null
+
+            _uiState.value = _uiState.value.copy(
+                selectedWeightAnalytics = weightRes.getOrNull(),
+                selectedPhytosanitaryAnalytics = phytoRes?.getOrNull(),
+                isLoading = false
+            )
         }
     }
 
     fun selectLote(loteSummary: LoteSummary) {
-        _uiState.value = _uiState.value.copy(selectedLoteName = loteSummary.name)
-        val firstBlock = loteSummary.blocks.firstOrNull()?.bloque
-        if (firstBlock != null) {
-            selectBlock(firstBlock)
+        viewModelScope.launch {
+            val rawLote = loteSummary.name.removePrefix("Lote ").trim()
+            _uiState.value = _uiState.value.copy(
+                selectedLoteName = loteSummary.name,
+                selectedLoteSummary = loteSummary,
+                selectedBlockName = loteSummary.name,
+                selectedGroupName = "",
+                selectedGroupSummary = null,
+                isLoading = true
+            )
+
+            val firstBlock = loteSummary.blocks.firstOrNull()?.bloque
+            val weightRes = if (firstBlock != null) repository.getWeightAnalytics(firstBlock) else null
+            val phytoRes = if (firstBlock != null) repository.getPhytosanitaryAnalytics(firstBlock) else null
+
+            _uiState.value = _uiState.value.copy(
+                selectedWeightAnalytics = weightRes?.getOrNull(),
+                selectedPhytosanitaryAnalytics = phytoRes?.getOrNull(),
+                isLoading = false
+            )
         }
     }
 }

@@ -125,6 +125,29 @@ class DashboardRepository(
         }
     }
 
+    suspend fun getGroupWeightAnalytics(grupoSiembra: String): Result<WeightAnalytics> = withContext(Dispatchers.IO) {
+        if (useDirectDbMode) {
+            val res = directDbRepository.getGroupWeightAnalytics(grupoSiembra)
+            if (res.isSuccess) {
+                res.getOrNull()?.let { cacheManager?.saveWeightAnalytics("Grupo_$grupoSiembra", it) }
+                return@withContext res
+            }
+        }
+
+        try {
+            val res = RetrofitClient.apiService.getGroupWeightAnalytics(grupoSiembra)
+            cacheManager?.saveWeightAnalytics("Grupo_$grupoSiembra", res)
+            Result.success(res)
+        } catch (e: Throwable) {
+            val cached = cacheManager?.getWeightAnalytics("Grupo_$grupoSiembra")
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(Exception(e.message ?: "Sin conexión analítica peso grupo", e))
+            }
+        }
+    }
+
     suspend fun getPhytosanitaryAnalytics(bloque: String): Result<PhytosanitaryAnalytics> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
             val res = directDbRepository.getPhytosanitaryAnalytics(bloque)

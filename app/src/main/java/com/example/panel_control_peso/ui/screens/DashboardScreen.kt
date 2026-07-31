@@ -860,7 +860,7 @@ fun PesoTabContent(
         if (analytics == null || analytics.totalMuestreos == 0) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "Selecciona un bloque con muestreos de peso para ver el análisis de crecimiento.",
+                    "Selecciona un bloque o grupo con muestreos para ver el análisis y gráfica de peso.",
                     color = AgroTextMuted,
                     textAlign = TextAlign.Center
                 )
@@ -868,7 +868,7 @@ fun PesoTabContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    // Growth Curve Graph with Plant Age in Months & Y-Axis Labels in Grams
+                    // Growth Curve Graph with Plant Age in Months & Y-Axis Labels
                     GrowthCurveChart(series = analytics.serieHistorica)
                 }
                 item {
@@ -1120,19 +1120,105 @@ fun DetalleBloqueTabContent(
     viewModel: DashboardViewModel
 ) {
     val summary = state.selectedBlockSummary
+    val groupSummary = state.selectedGroupSummary
+    val loteSummary = state.selectedLoteSummary
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         BlockSelectorHeader(state = state, onSelectBlock = { viewModel.selectBlock(it) })
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (summary == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Selecciona un bloque para ver la ficha completa.", color = AgroTextMuted)
-            }
-        } else {
+        if (groupSummary != null) {
+            // Group Technical Sheet (Ficha Agronómica de Grupo)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    // Growth Curve Graph with Plant Age in Months & Y-Axis Labels
+                    if (state.selectedWeightAnalytics != null) {
+                        GrowthCurveChart(series = state.selectedWeightAnalytics.serieHistorica)
+                    }
+                }
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                "Ficha Técnica Consolidada - Grupo: ${groupSummary.name}",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = AgroBlue
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            RowDetail("Total Bloques en Grupo", "${groupSummary.totalBloques} bloques")
+                            RowDetail("Área Total Acumulada", "${format1Dec(groupSummary.totalArea / 10000)} ha (${format1Dec(groupSummary.totalArea)} m²)")
+                            RowDetail("Población Total", "${groupSummary.totalPoblacion} plantas")
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        "Bloques en el Grupo (${groupSummary.blocks.size})",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+                items(groupSummary.blocks) { block ->
+                    CleanBlockCardItem(
+                        block = block,
+                        isSelected = block.bloque == state.selectedBlockName,
+                        onClick = { viewModel.selectBlock(block.bloque) }
+                    )
+                }
+            }
+        } else if (loteSummary != null) {
+            // Lote Technical Sheet (Ficha Agronómica de Lote)
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item {
+                    if (state.selectedWeightAnalytics != null) {
+                        GrowthCurveChart(series = state.selectedWeightAnalytics.serieHistorica)
+                    }
+                }
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = AgroCardBg),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                "Ficha Técnica Consolidada - ${loteSummary.name}",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFFA855F7)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            RowDetail("Total Bloques en Lote", "${loteSummary.totalBloques} bloques")
+                            RowDetail("Área Total Acumulada", "${format1Dec(loteSummary.totalArea / 10000)} ha (${format1Dec(loteSummary.totalArea)} m²)")
+                            RowDetail("Población Total", "${loteSummary.totalPoblacion} plantas")
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        "Bloques en el Lote (${loteSummary.blocks.size})",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+                items(loteSummary.blocks) { block ->
+                    CleanBlockCardItem(
+                        block = block,
+                        isSelected = block.bloque == state.selectedBlockName,
+                        onClick = { viewModel.selectBlock(block.bloque) }
+                    )
+                }
+            }
+        } else if (summary != null) {
+            // Individual Block Technical Sheet
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item {
                     GrowthCurveChart(series = summary.pesoAnalitica.serieHistorica)
                 }
                 item {
@@ -1169,6 +1255,10 @@ fun DetalleBloqueTabContent(
                     }
                 }
             }
+        } else {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Selecciona un bloque o grupo para ver la ficha completa.", color = AgroTextMuted)
+            }
         }
     }
 }
@@ -1200,7 +1290,7 @@ fun BlockSelectorHeader(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text("Bloque Seleccionado", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                Text("Seleccionado Actual", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
                 Text(
                     if (state.selectedBlockName.isNotEmpty()) state.selectedBlockName else "Ninguno",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
