@@ -8,8 +8,8 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // Default API Server URL
-    var BASE_URL = "https://interno.control.agricolaguapa.com/"
+    // Default API Server URL (Blueprint consultor)
+    var BASE_URL = "https://interno.control.agricolaguapa.com/consultor/"
         private set
 
     fun setCustomBaseUrl(url: String) {
