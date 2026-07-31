@@ -5,10 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.sql.Connection
 import java.sql.DriverManager
-import java.sql.ResultSet
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.Properties
 import kotlin.math.round
 
 class DirectDbRepository {
@@ -20,7 +20,15 @@ class DirectDbRepository {
     private fun getConnection(): Connection {
         Class.forName("org.postgresql.Driver")
         DriverManager.setLoginTimeout(10)
-        return DriverManager.getConnection(dbUrl, dbUser, dbPassword)
+
+        val props = Properties()
+        props.setProperty("user", dbUser)
+        props.setProperty("password", dbPassword)
+        props.setProperty("loginTimeout", "10")
+        props.setProperty("connectTimeout", "10")
+        props.setProperty("socketTimeout", "15")
+
+        return DriverManager.getConnection(dbUrl, props)
     }
 
     suspend fun getGlobalKpis(): Result<GlobalKpis> = withContext(Dispatchers.IO) {
@@ -77,8 +85,8 @@ class DirectDbRepository {
                     )
                 )
             }
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al conectar directamente a PostgreSQL", e))
         }
     }
 
@@ -150,8 +158,8 @@ class DirectDbRepository {
                 }
                 Result.success(list)
             }
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al consultar bloques", e))
         }
     }
 
@@ -234,8 +242,8 @@ class DirectDbRepository {
                     )
                 )
             }
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al consultar analítica de peso", e))
         }
     }
 
@@ -306,8 +314,8 @@ class DirectDbRepository {
                     )
                 )
             }
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al consultar estado fitosanitario", e))
         }
     }
 
@@ -326,8 +334,8 @@ class DirectDbRepository {
                     fitosanitario = phyto
                 )
             )
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al consultar resumen del bloque", e))
         }
     }
 

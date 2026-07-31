@@ -56,8 +56,8 @@ dependencies {
     // ViewModel & Lifecycle for Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-    // PostgreSQL JDBC Driver for Direct Connection Mode
-    implementation("org.postgresql:postgresql:42.7.2")
+    // PostgreSQL JDBC Driver for Direct Connection Mode (Android compatible version)
+    implementation("org.postgresql:postgresql:42.2.27")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
