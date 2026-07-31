@@ -24,13 +24,13 @@ import androidx.compose.ui.unit.sp
 import com.example.panel_control_peso.data.model.WeightSeriesEntry
 import java.util.Locale
 
-// PALETA OFICIAL EN EL GRÁFICO
+// PALETA AJUSTADA EN EL GRÁFICO
 val ChartBgWhite = Color(0xFFFFFFFF)
-val ChartBorderSoft = Color(0xFFE2DCD0)
-val ChartLineOrange = Color(0xFFEA580C)
+val ChartBorderSoft = Color(0xFFE5DDD0)
+val ChartLineDarkBeige = Color(0xFFB47B48) // Beige oscuro cálido
 val ChartTextCharcoal = Color(0xFF18181B)
 val ChartGridGray = Color(0xFFE5E5E5)
-val ChartDotOrange = Color(0xFFC2410C)
+val ChartDotBeige = Color(0xFF8C5829)
 
 @Composable
 fun GrowthCurveChart(
@@ -53,7 +53,7 @@ fun GrowthCurveChart(
             Text(
                 "Eje Y: Peso Promedio (g) | Eje X: Edad de la Planta (Meses)",
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF71717A)
+                color = Color(0xFF52525B)
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -64,7 +64,7 @@ fun GrowthCurveChart(
                         .height(180.dp),
                     contentAlignment = androidx.compose.ui.Alignment.Center
                 ) {
-                    Text("Sin datos históricos para graficar", color = Color(0xFF71717A), fontSize = 12.sp)
+                    Text("Sin datos históricos para graficar", color = Color(0xFF52525B), fontSize = 12.sp)
                 }
             } else {
                 val sortedSeries = series.sortedBy { it.edadMeses }
@@ -163,7 +163,7 @@ fun GrowthCurveChart(
 
                         drawPath(
                             path = path,
-                            color = ChartLineOrange,
+                            color = ChartLineDarkBeige,
                             style = Stroke(width = 3.dp.toPx())
                         )
                     }
@@ -171,7 +171,7 @@ fun GrowthCurveChart(
                     // Draw Point Markers on line
                     points.forEach { pt ->
                         drawCircle(
-                            color = ChartDotOrange,
+                            color = ChartDotBeige,
                             radius = 4.dp.toPx(),
                             center = pt
                         )
