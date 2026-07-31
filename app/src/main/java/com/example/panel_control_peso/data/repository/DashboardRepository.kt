@@ -1,76 +1,156 @@
 package com.example.panel_control_peso.data.repository
 
+import android.content.Context
 import com.example.panel_control_peso.data.api.RetrofitClient
+import com.example.panel_control_peso.data.cache.OfflineCacheManager
 import com.example.panel_control_peso.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class DashboardRepository(
+    context: Context? = null,
     private val directDbRepository: DirectDbRepository = DirectDbRepository()
 ) {
 
-    // Default: false = API REST Mode (https://interno.control.agricolaguapa.com/), true = Direct AWS RDS PostgreSQL
+    private val cacheManager: OfflineCacheManager? = context?.let { OfflineCacheManager(it) }
     var useDirectDbMode: Boolean = false
 
     suspend fun getGlobalKpis(): Result<GlobalKpis> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            return@withContext directDbRepository.getGlobalKpis()
+            val res = directDbRepository.getGlobalKpis()
+            if (res.isSuccess) {
+                res.getOrNull()?.let { cacheManager?.saveKpis(it) }
+                return@withContext res
+            }
         }
 
         try {
             val res = RetrofitClient.apiService.getGlobalKpis()
+            cacheManager?.saveKpis(res)
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error al conectar con https://interno.control.agricolaguapa.com/", e))
+            val cached = cacheManager?.getKpis()
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(Exception(e.message ?: "Sin conexión y sin datos en caché", e))
+            }
         }
     }
 
-    suspend fun getUnforcedBlocks(search: String? = null): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
+    suspend fun getUnforcedBlocks(
+        search: String? = null,
+        grupoSiembra: String? = null,
+        ultimoMes: Boolean = false
+    ): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            return@withContext directDbRepository.getUnforcedBlocks(search)
+            val res = directDbRepository.getUnforcedBlocks(search, grupoSiembra, ultimoMes)
+            if (res.isSuccess) {
+                res.getOrNull()?.let { cacheManager?.saveUnforcedBlocks(it) }
+                return@withContext res
+            }
         }
 
         try {
-            val res = RetrofitClient.apiService.getUnforcedBlocks(search = search)
+            val res = RetrofitClient.apiService.getUnforcedBlocks(
+                search = search,
+                grupoSiembra = grupoSiembra,
+                ultimoMes = if (ultimoMes) true else null
+            )
+            cacheManager?.saveUnforcedBlocks(res)
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error al consultar bloques en la API", e))
+            val cached = cacheManager?.getUnforcedBlocks()
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(Exception(e.message ?: "Sin conexión a bloques no forzados", e))
+            }
+        }
+    }
+
+    suspend fun getForcedBlocks(
+        search: String? = null,
+        grupoSiembra: String? = null,
+        startDate: String? = null,
+        endDate: String? = null
+    ): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
+        if (useDirectDbMode) {
+            val res = directDbRepository.getForcedBlocks(search, grupoSiembra, startDate, endDate)
+            if (res.isSuccess) {
+                res.getOrNull()?.let { cacheManager?.saveForcedBlocks(it) }
+                return@withContext res
+            }
+        }
+
+        try {
+            val res = RetrofitClient.apiService.getForcedBlocks(
+                search = search,
+                grupoSiembra = grupoSiembra,
+                fechaInicio = startDate,
+                fechaFin = endDate
+            )
+            cacheManager?.saveForcedBlocks(res)
+            Result.success(res)
+        } catch (e: Throwable) {
+            val cached = cacheManager?.getForcedBlocks()
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(Exception(e.message ?: "Sin conexión a grupos forzados", e))
+            }
         }
     }
 
     suspend fun getWeightAnalytics(bloque: String): Result<WeightAnalytics> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            return@withContext directDbRepository.getWeightAnalytics(bloque)
+            val res = directDbRepository.getWeightAnalytics(bloque)
+            if (res.isSuccess) {
+                res.getOrNull()?.let { cacheManager?.saveWeightAnalytics(bloque, it) }
+                return@withContext res
+            }
         }
 
         try {
             val res = RetrofitClient.apiService.getWeightAnalytics(bloque)
+            cacheManager?.saveWeightAnalytics(bloque, res)
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error analítica peso en la API", e))
+            val cached = cacheManager?.getWeightAnalytics(bloque)
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(Exception(e.message ?: "Sin conexión analítica peso", e))
+            }
         }
     }
 
     suspend fun getPhytosanitaryAnalytics(bloque: String): Result<PhytosanitaryAnalytics> = withContext(Dispatchers.IO) {
         if (useDirectDbMode) {
-            return@withContext directDbRepository.getPhytosanitaryAnalytics(bloque)
+            val res = directDbRepository.getPhytosanitaryAnalytics(bloque)
+            if (res.isSuccess) {
+                res.getOrNull()?.let { cacheManager?.savePhytosanitaryAnalytics(bloque, it) }
+                return@withContext res
+            }
         }
 
         try {
             val res = RetrofitClient.apiService.getPhytosanitaryAnalytics(bloque)
+            cacheManager?.savePhytosanitaryAnalytics(bloque, res)
             Result.success(res)
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error fitosanitario en la API", e))
+            val cached = cacheManager?.getPhytosanitaryAnalytics(bloque)
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(Exception(e.message ?: "Sin conexión fitosanitario", e))
+            }
         }
     }
 
     suspend fun getBlockSummary(bloque: String): Result<BlockSummary> = withContext(Dispatchers.IO) {
-        if (useDirectDbMode) {
-            return@withContext directDbRepository.getBlockSummary(bloque)
-        }
-
         try {
-            val unforcedRes = getUnforcedBlocks(bloque)
+            val unforcedRes = getUnforcedBlocks(search = bloque)
             val agro = unforcedRes.getOrNull()?.firstOrNull { it.bloque == bloque }
             val weight = getWeightAnalytics(bloque).getOrDefault(WeightAnalytics(bloque = bloque))
             val phyto = getPhytosanitaryAnalytics(bloque).getOrDefault(PhytosanitaryAnalytics(bloque = bloque))
@@ -84,7 +164,7 @@ class DashboardRepository(
                 )
             )
         } catch (e: Throwable) {
-            Result.failure(Exception(e.message ?: "Error resumen bloque en la API", e))
+            Result.failure(Exception(e.message ?: "Error resumen bloque", e))
         }
     }
 }

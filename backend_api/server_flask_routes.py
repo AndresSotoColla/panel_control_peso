@@ -6,22 +6,20 @@ from flask import request, jsonify
 from sqlalchemy import text
 
 # ==============================================================================
-# RUTAS DE LA API DEL DASHBOARD PARA COLOCAR EN TU SERVIDOR FLASK
-# URL Base: https://interno.control.agricolaguapa.com/consultor/
-# Blueprint: consultor (url_prefix='/consultor')
-# Sin restricción de rol (Acceso libre)
+# RUTAS DE LA API DASHBOARD AGRÍCOLA (Blueprint: consultor)
+# URL Base pública: https://interno.control.agricolaguapa.com/consultor/
 # ==============================================================================
 
 @consultor.route('/api/kpis_dashboard_agricola', methods=['GET'])
 def api_kpis_dashboard_agricola():
-    """Retorna los KPIs globales para las tarjetas del aplicativo Android."""
+    """Retorna los KPIs globales formateados en 2x2 para el aplicativo Android."""
     try:
         query = text("""
             SELECT 
                 (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS total_bloques_sin_forzar,
                 (SELECT COALESCE(SUM(area), 0) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS area_total_sin_forzar,
                 (SELECT COALESCE(SUM(poblacion), 0) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01') AS poblacion_total_sin_forzar,
-                (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01' AND finduccion IS NOT NULL AND finduccion <= (CURRENT_DATE + INTERVAL '30 days')) AS forzamiento_urgente,
+                (SELECT COUNT(*) FROM public.blocks_desarrollo WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01' AND finduccion IS NOT NULL AND finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND finduccion <= CURRENT_DATE) AS induccion_ultimo_mes,
                 (SELECT COUNT(DISTINCT bloque) FROM public.mu_peso_planta) AS total_bloques_muestreados
         """)
         res = db.session.execute(query).fetchone()
@@ -29,7 +27,7 @@ def api_kpis_dashboard_agricola():
             "total_bloques_sin_forzar": int(res.total_bloques_sin_forzar or 0),
             "area_total_sin_forzar": round(float(res.area_total_sin_forzar or 0.0), 2),
             "poblacion_total_sin_forzar": int(res.poblacion_total_sin_forzar or 0),
-            "forzamiento_urgente": int(res.forzamiento_urgente or 0),
+            "induccion_ultimo_mes": int(res.induccion_ultimo_mes or 0),
             "total_bloques_muestreados": int(res.total_bloques_muestreados or 0)
         })
     except Exception as e:
@@ -38,16 +36,29 @@ def api_kpis_dashboard_agricola():
 
 @consultor.route('/api/bloques_sin_forzar', methods=['GET'])
 def api_bloques_sin_forzar():
-    """Retorna la lista de bloques no forzados con cálculo de días a inducción."""
+    """
+    Retorna bloques no forzados (grupo_forza IS NULL).
+    Permite filtrar por bloque o grupo_siembra, ordenado de más viejo a más nuevo.
+    """
     try:
         search = request.args.get('search', '')
-        limit = request.args.get('limit', 100, type=int)
+        grupo_siembra = request.args.get('grupo_siembra', '')
+        filtro_ultimo_mes = request.args.get('ultimo_mes', 'false').lower() == 'true'
+        limit = request.args.get('limit', 150, type=int)
 
         additional_filter = ""
         params = {'limit': limit}
+
         if search:
-            additional_filter += " AND (bd.bloque ILIKE :search OR bd.descripcion ILIKE :search)"
+            additional_filter += " AND (bd.bloque ILIKE :search OR bd.descripcion ILIKE :search OR bd.grupo_siembra ILIKE :search)"
             params['search'] = f"%{search}%"
+
+        if grupo_siembra:
+            additional_filter += " AND bd.grupo_siembra ILIKE :grupo_siembra"
+            params['grupo_siembra'] = f"%{grupo_siembra}%"
+
+        if filtro_ultimo_mes:
+            additional_filter += " AND bd.finduccion IS NOT NULL AND bd.finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND bd.finduccion <= CURRENT_DATE"
 
         query = text(f"""
             SELECT 
@@ -59,14 +70,69 @@ def api_bloques_sin_forzar():
                     ELSE NULL 
                 END AS dias_hasta_induccion,
                 CASE 
-                    WHEN bd.finduccion IS NOT NULL AND (bd.finduccion - CURRENT_DATE) <= 15 THEN 'URGENTE'
-                    WHEN bd.finduccion IS NOT NULL AND (bd.finduccion - CURRENT_DATE) <= 45 THEN 'PROXIMO'
-                    WHEN bd.finduccion IS NOT NULL THEN 'NORMAL'
+                    WHEN bd.finduccion IS NOT NULL AND bd.finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND bd.finduccion <= CURRENT_DATE THEN 'ULTIMO_MES'
+                    WHEN bd.finduccion IS NOT NULL THEN 'PROGRAMADO'
                     ELSE 'SIN_FECHA'
                 END AS categoria_forzamiento
             FROM public.blocks_desarrollo bd
             WHERE bd.grupo_forza IS NULL AND bd.fecha_siembra > '2025-01-01' {additional_filter}
-            ORDER BY bd.finduccion ASC NULLS LAST
+            ORDER BY bd.finduccion ASC NULLS LAST, bd.fecha_siembra ASC
+            LIMIT :limit;
+        """)
+
+        result = db.session.execute(query, params)
+        tabla = pd.DataFrame(result.fetchall(), columns=result.keys())
+
+        for col in ['fecha_siembra', 'finduccion', 'mediana_fecha_cosecha']:
+            if col in tabla.columns:
+                tabla[col] = tabla[col].astype(str).replace({'NaT': None, 'None': None, 'nan': None})
+
+        tabla = tabla.replace({np.nan: None, pd.NaT: None})
+        return jsonify(tabla.to_dict(orient='records'))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@consultor.route('/api/bloques_forzados', methods=['GET'])
+def api_bloques_forzados():
+    """
+    NUEVA API: Retorna la lista de bloques que ya han sido forzados (grupo_forza IS NOT NULL).
+    Filtros: bloque, grupo_siembra, fecha_inicio, fecha_fin.
+    """
+    try:
+        search = request.args.get('search', '')
+        grupo_siembra = request.args.get('grupo_siembra', '')
+        start_date = request.args.get('fecha_inicio', '')
+        end_date = request.args.get('fecha_fin', '')
+        limit = request.args.get('limit', 150, type=int)
+
+        additional_filter = ""
+        params = {'limit': limit}
+
+        if search:
+            additional_filter += " AND (bd.bloque ILIKE :search OR bd.descripcion ILIKE :search OR bd.grupo_siembra ILIKE :search OR bd.grupo_forza ILIKE :search)"
+            params['search'] = f"%{search}%"
+
+        if grupo_siembra:
+            additional_filter += " AND bd.grupo_siembra ILIKE :grupo_siembra"
+            params['grupo_siembra'] = f"%{grupo_siembra}%"
+
+        if start_date:
+            additional_filter += " AND bd.finduccion >= :start_date"
+            params['start_date'] = start_date
+
+        if end_date:
+            additional_filter += " AND bd.finduccion <= :end_date"
+            params['end_date'] = end_date
+
+        query = text(f"""
+            SELECT 
+                bd.blocknumber, bd.descripcion, bd.desarrollo, bd.bloque, bd.poblacion, bd.area, bd.drenajes, 
+                bd.grupo_siembra, bd.fecha_siembra, bd.grupo_forza, bd.finduccion, bd.grupo_semillero, 
+                bd.mediana_fecha_cosecha, bd.kilos_cosechados, bd.frutas, bd.dias_preforza, bd.dias_posforza
+            FROM public.blocks_desarrollo bd
+            WHERE bd.grupo_forza IS NOT NULL {additional_filter}
+            ORDER BY bd.finduccion DESC NULLS LAST, bd.fecha_siembra DESC
             LIMIT :limit;
         """)
 

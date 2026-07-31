@@ -6,9 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,9 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +51,7 @@ fun DashboardScreen(
                             color = Color.White
                         )
                         Text(
-                            if (state.isDirectDbMode) "🌐 Conexión Directa AWS RDS (Global 4G/5G/WiFi)" else "⚡ Servidor API REST",
+                            if (state.isDirectDbMode) "Conexión Directa AWS RDS" else "Servidor API REST (interno.control.agricolaguapa.com)",
                             style = MaterialTheme.typography.labelSmall,
                             color = AgroAccent
                         )
@@ -66,7 +62,7 @@ fun DashboardScreen(
                         Icon(Icons.Default.Refresh, contentDescription = "Actualizar", tint = Color.White)
                     }
                     IconButton(onClick = { showServerDialog = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configurar Servidor", tint = Color.White)
+                        Icon(Icons.Default.Settings, contentDescription = "Configuración", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AgroGreenDark)
@@ -78,7 +74,20 @@ fun DashboardScreen(
                     selected = state.selectedTab == 0,
                     onClick = { viewModel.selectTab(0) },
                     icon = { Icon(Icons.Default.Agriculture, contentDescription = null) },
-                    label = { Text("Forzamiento", fontSize = 11.sp) },
+                    label = { Text("Sin Forzar", fontSize = 10.sp) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = AgroAccent,
+                        selectedTextColor = AgroAccent,
+                        unselectedIconColor = AgroTextMuted,
+                        unselectedTextColor = AgroTextMuted,
+                        indicatorColor = AgroCardBg
+                    )
+                )
+                NavigationBarItem(
+                    selected = state.selectedTab == 4,
+                    onClick = { viewModel.selectTab(4) },
+                    icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
+                    label = { Text("Forzados", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = AgroAccent,
                         selectedTextColor = AgroAccent,
@@ -91,7 +100,7 @@ fun DashboardScreen(
                     selected = state.selectedTab == 1,
                     onClick = { viewModel.selectTab(1) },
                     icon = { Icon(Icons.Default.ShowChart, contentDescription = null) },
-                    label = { Text("Peso & Tasa", fontSize = 11.sp) },
+                    label = { Text("Peso", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = AgroAccent,
                         selectedTextColor = AgroAccent,
@@ -104,7 +113,7 @@ fun DashboardScreen(
                     selected = state.selectedTab == 2,
                     onClick = { viewModel.selectTab(2) },
                     icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                    label = { Text("Fitosanitario", fontSize = 11.sp) },
+                    label = { Text("Fitosanitario", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = AgroAccent,
                         selectedTextColor = AgroAccent,
@@ -117,7 +126,7 @@ fun DashboardScreen(
                     selected = state.selectedTab == 3,
                     onClick = { viewModel.selectTab(3) },
                     icon = { Icon(Icons.Default.Analytics, contentDescription = null) },
-                    label = { Text("Ficha Bloque", fontSize = 11.sp) },
+                    label = { Text("Ficha", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = AgroAccent,
                         selectedTextColor = AgroAccent,
@@ -137,8 +146,8 @@ fun DashboardScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // KPI Header Banner
-                KpiHeaderSection(kpis = state.kpis)
+                // KPI Header 2x2 Grid (Centered, No Emoticons, No Scroll)
+                KpiGridHeaderSection(kpis = state.kpis)
 
                 if (state.errorMessage != null) {
                     ErrorBanner(
@@ -159,7 +168,8 @@ fun DashboardScreen(
                 // Main Content Body based on selected Tab
                 Box(modifier = Modifier.weight(1f)) {
                     when (state.selectedTab) {
-                        0 -> ForzamientoTabContent(state = state, viewModel = viewModel)
+                        0 -> SinForzarTabContent(state = state, viewModel = viewModel)
+                        4 -> ForzadosTabContent(state = state, viewModel = viewModel)
                         1 -> PesoTabContent(state = state, viewModel = viewModel)
                         2 -> FitosanitarioTabContent(state = state, viewModel = viewModel)
                         3 -> DetalleBloqueTabContent(state = state, viewModel = viewModel)
@@ -187,96 +197,78 @@ fun DashboardScreen(
 }
 
 @Composable
-fun KpiHeaderSection(kpis: GlobalKpis) {
-    LazyRow(
+fun KpiGridHeaderSection(kpis: GlobalKpis) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item {
-            KpiCard(
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CleanKpiCard(
                 title = "Sin Forzar",
-                value = "${kpis.totalBloquesSinForzar}",
-                subtitle = "Bloques pendientes",
-                icon = Icons.Default.PendingActions,
-                color = AgroAccent
+                value = "${kpis.totalBloquesSinForzar} bloques",
+                modifier = Modifier.weight(1f),
+                accentColor = AgroAccent
             )
-        }
-        item {
-            KpiCard(
-                title = "Forza Urgente",
-                value = "${kpis.forzamientoUrgente}",
-                subtitle = "< 30 días a inducción",
-                icon = Icons.Default.Warning,
-                color = AgroWarning
-            )
-        }
-        item {
-            KpiCard(
+            CleanKpiCard(
                 title = "Área Sin Forzar",
                 value = "${String.format("%.1f", kpis.areaTotalSinForzar / 10000)} ha",
-                subtitle = "${kpis.areaTotalSinForzar} m²",
-                icon = Icons.Default.SquareFoot,
-                color = AgroBlue
+                modifier = Modifier.weight(1f),
+                accentColor = AgroBlue
             )
         }
-        item {
-            KpiCard(
-                title = "Bloques Muestreados",
-                value = "${kpis.totalBloquesMuestreados}",
-                subtitle = "En base de pesaje",
-                icon = Icons.Default.MonitorWeight,
-                color = Color(0xFFA855F7)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CleanKpiCard(
+                title = "Población Total",
+                value = "${kpis.poblacionTotalSinForzar} plantas",
+                modifier = Modifier.weight(1f),
+                accentColor = Color(0xFFA855F7)
+            )
+            CleanKpiCard(
+                title = "Inducción Reciente",
+                value = "${kpis.induccionUltimoMes} bloques (último mes)",
+                modifier = Modifier.weight(1f),
+                accentColor = AgroWarning
             )
         }
     }
 }
 
 @Composable
-fun KpiCard(
+fun CleanKpiCard(
     title: String,
     value: String,
-    subtitle: String,
-    icon: ImageVector,
-    color: Color
+    modifier: Modifier = Modifier,
+    accentColor: Color
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.width(155.dp)
+        shape = RoundedCornerShape(10.dp),
+        modifier = modifier
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = AgroTextMuted
-                )
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(color.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
+        Column(
+            modifier = Modifier.padding(10.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = AgroTextMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 value,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
-            )
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = AgroTextMuted,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = accentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -299,18 +291,18 @@ fun ErrorBanner(
     ) {
         Row(
             modifier = Modifier
-                .padding(12.dp)
+                .padding(10.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Default.Error, contentDescription = null, tint = AgroDanger)
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Error de Conexión", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                Text("Aviso de Conexión", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color.White)
                 Text(message, style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
             }
             TextButton(onClick = onConfigServer) {
-                Text("Config IP", color = AgroAccent, fontSize = 12.sp)
+                Text("Configuración", color = AgroAccent, fontSize = 11.sp)
             }
             IconButton(onClick = onRetry) {
                 Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White)
@@ -321,63 +313,156 @@ fun ErrorBanner(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ForzamientoTabContent(
+fun SinForzarTabContent(
     state: DashboardUiState,
     viewModel: DashboardViewModel
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-        // Search & Filter Bar
-        OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = { viewModel.onSearchQueryChanged(it) },
-            placeholder = { Text("Buscar bloque o descripción...", color = AgroTextMuted) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = AgroAccent) },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AgroCardBg,
-                unfocusedContainerColor = AgroCardBg,
-                focusedBorderColor = AgroAccent,
-                unfocusedBorderColor = AgroCardBg,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
-        )
-
-        // Filter chips
+        // Dual Search Bar: Bloque & Grupo Siembra
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            val categories = listOf("TODOS", "URGENTE", "PROXIMO", "NORMAL")
-            categories.forEach { cat ->
-                val selected = state.categoryFilter == cat
-                FilterChip(
-                    selected = selected,
-                    onClick = { viewModel.onCategoryFilterChanged(cat) },
-                    label = { Text(cat, fontSize = 11.sp, color = if (selected) Color.Black else Color.White) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = AgroAccent,
-                        containerColor = AgroCardBg
-                    ),
-                    border = null
-                )
-            }
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                placeholder = { Text("Buscar Bloque...", color = AgroTextMuted, fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AgroCardBg,
+                    unfocusedContainerColor = AgroCardBg,
+                    focusedBorderColor = AgroAccent,
+                    unfocusedBorderColor = AgroCardBg,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = state.grupoSiembraFilter,
+                onValueChange = { viewModel.onGrupoSiembraFilterChanged(it) },
+                placeholder = { Text("Grupo Siembra...", color = AgroTextMuted, fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AgroCardBg,
+                    unfocusedContainerColor = AgroCardBg,
+                    focusedBorderColor = AgroAccent,
+                    unfocusedBorderColor = AgroCardBg,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
         }
 
-        // List of blocks
+        // Filter chip for Inducción Último Mes
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            FilterChip(
+                selected = state.soloUltimoMes,
+                onClick = { viewModel.toggleSoloUltimoMes(!state.soloUltimoMes) },
+                label = { Text("Inducción del Último Mes", fontSize = 11.sp, color = if (state.soloUltimoMes) Color.Black else Color.White) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = AgroAccent,
+                    containerColor = AgroCardBg
+                ),
+                border = null
+            )
+            Text(
+                "Orden: Más viejo a más nuevo",
+                style = MaterialTheme.typography.labelSmall,
+                color = AgroTextMuted
+            )
+        }
+
+        // List of unforced blocks
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(state.filteredBlocks) { block ->
-                BlockCardItem(
+            items(state.filteredUnforcedBlocks) { block ->
+                CleanBlockCardItem(
                     block = block,
                     isSelected = block.bloque == state.selectedBlockName,
                     onClick = {
                         viewModel.selectBlock(block.bloque)
-                        viewModel.selectTab(3) // Switch to Detail tab
+                        viewModel.selectTab(3)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ForzadosTabContent(
+    state: DashboardUiState,
+    viewModel: DashboardViewModel
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+        // Dual Search Bar: Bloque & Grupo Siembra
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                placeholder = { Text("Buscar Bloque/Forza...", color = AgroTextMuted, fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AgroCardBg,
+                    unfocusedContainerColor = AgroCardBg,
+                    focusedBorderColor = AgroAccent,
+                    unfocusedBorderColor = AgroCardBg,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = state.grupoSiembraFilter,
+                onValueChange = { viewModel.onGrupoSiembraFilterChanged(it) },
+                placeholder = { Text("Grupo Siembra...", color = AgroTextMuted, fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AgroCardBg,
+                    unfocusedContainerColor = AgroCardBg,
+                    focusedBorderColor = AgroAccent,
+                    unfocusedBorderColor = AgroCardBg,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
+        }
+
+        Text(
+            "Consulta de Grupos Forzados (${state.filteredForcedBlocks.size} registros)",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = AgroAccent,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(state.filteredForcedBlocks) { block ->
+                CleanForcedBlockCardItem(
+                    block = block,
+                    isSelected = block.bloque == state.selectedBlockName,
+                    onClick = {
+                        viewModel.selectBlock(block.bloque)
+                        viewModel.selectTab(3)
                     }
                 )
             }
@@ -386,60 +471,40 @@ fun ForzamientoTabContent(
 }
 
 @Composable
-fun BlockCardItem(
+fun CleanBlockCardItem(
     block: UnforcedBlock,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val categoryColor = when (block.categoriaForzamiento) {
-        "URGENTE" -> AgroDanger
-        "PROXIMO" -> AgroWarning
-        "NORMAL" -> AgroAccent
-        else -> AgroTextMuted
-    }
-
     Card(
         colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
                 color = if (isSelected) AgroAccent else Color.Transparent,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(10.dp)
             )
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(categoryColor)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        block.bloque,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
-                    )
-                }
+                Text(
+                    block.bloque,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
+                )
 
-                Badge(
-                    containerColor = categoryColor.copy(alpha = 0.2f),
-                    contentColor = categoryColor
-                ) {
+                if (!block.grupoSiembra.isNull_or_empty()) {
                     Text(
-                        text = block.categoriaForzamiento ?: "SIN FECHA",
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
+                        "Grupo: ${block.grupoSiembra}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = AgroAccent
                     )
                 }
             }
@@ -453,9 +518,7 @@ fun BlockCardItem(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -470,12 +533,77 @@ fun BlockCardItem(
                     Text(block.finduccion ?: "Sin asignar", style = MaterialTheme.typography.bodySmall, color = Color.White)
                 }
                 Column {
-                    Text("Días a Forza", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    Text(
-                        text = if (block.diasHastaInduccion != null) "${block.diasHastaInduccion} d" else "N/D",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                        color = categoryColor
-                    )
+                    Text("Área / Población", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                    Text("${block.area ?: 0.0} m² (${block.poblacion ?: 0})", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CleanForcedBlockCardItem(
+    block: UnforcedBlock,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = if (isSelected) AgroCardBg.copy(alpha = 0.9f) else AgroCardBg),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .border(
+                width = if (isSelected) 2.dp else 0.dp,
+                color = if (isSelected) AgroAccent else Color.Transparent,
+                shape = RoundedCornerShape(10.dp)
+            )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    block.bloque,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
+                )
+
+                Text(
+                    "Grupo Forza: ${block.grupoForza ?: "N/D"}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = AgroBlue
+                )
+            }
+
+            if (!block.descripcion.isNull_or_empty()) {
+                Text(
+                    block.descripcion ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AgroTextMuted,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Grupo Siembra", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                    Text(block.grupoSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                }
+                Column {
+                    Text("Fecha Siembra", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                    Text(block.fechaSiembra ?: "N/D", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                }
+                Column {
+                    Text("Fin Inducción", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                    Text(block.finduccion ?: "N/D", style = MaterialTheme.typography.bodySmall, color = Color.White)
                 }
             }
         }
@@ -490,9 +618,7 @@ fun PesoTabContent(
     val analytics = state.selectedWeightAnalytics
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-        // Block selector header
         BlockSelectorHeader(state = state, onSelectBlock = { viewModel.selectBlock(it) })
-
         Spacer(modifier = Modifier.height(10.dp))
 
         if (analytics == null || analytics.totalMuestreos == 0) {
@@ -506,15 +632,11 @@ fun PesoTabContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    // Trend Summary Card
                     TrendSummaryCard(analytics = analytics)
                 }
-
                 item {
-                    // Growth Rate Metrics Card
                     GrowthMetricsCard(analytics = analytics)
                 }
-
                 item {
                     Text(
                         "Historial de Pesajes por Fecha (${analytics.serieHistorica.size} muestreos)",
@@ -523,7 +645,6 @@ fun PesoTabContent(
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
-
                 items(analytics.serieHistorica) { entry ->
                     WeightSeriesItem(entry = entry)
                 }
@@ -535,23 +656,23 @@ fun PesoTabContent(
 @Composable
 fun TrendSummaryCard(analytics: WeightAnalytics) {
     val (trendText, trendColor, trendIcon) = when (analytics.tendencia) {
-        "CRECIENDO_ACELERADO" -> Triple("🟢 Creciendo Acelerado", AgroAccent, Icons.Default.TrendingUp)
-        "CRECIENDO_ESTABLE" -> Triple("🟢 Creciendo Estable", AgroAccent, Icons.Default.TrendingUp)
-        "ESTABLE" -> Triple("🟡 Tasa Estable / Estancado", AgroWarning, Icons.Default.TrendingFlat)
-        "DISMINUYENDO" -> Triple("🔴 Disminuyendo de Peso", AgroDanger, Icons.Default.TrendingDown)
-        else -> Triple("⚪ Sin Datos", AgroTextMuted, Icons.Default.Help)
+        "CRECIENDO_ACELERADO" -> Triple("Creciendo Acelerado", AgroAccent, Icons.Default.TrendingUp)
+        "CRECIENDO_ESTABLE" -> Triple("Creciendo Estable", AgroAccent, Icons.Default.TrendingUp)
+        "ESTABLE" -> Triple("Tasa Estable / Estancado", AgroWarning, Icons.Default.TrendingFlat)
+        "DISMINUYENDO" -> Triple("Disminuyendo de Peso", AgroDanger, Icons.Default.TrendingDown)
+        else -> Triple("Sin Datos", AgroTextMuted, Icons.Default.Help)
     }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(trendIcon, contentDescription = null, tint = trendColor, modifier = Modifier.size(36.dp))
+            Icon(trendIcon, contentDescription = null, tint = trendColor, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text("Tendencia de Crecimiento", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
@@ -570,16 +691,16 @@ fun TrendSummaryCard(analytics: WeightAnalytics) {
 fun GrowthMetricsCard(analytics: WeightAnalytics) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 "Métricas de Ganancia de Peso",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 MetricColumn("Peso Inicial", "${analytics.pesoInicialG} g", "Primer muestreo")
@@ -648,17 +769,12 @@ fun FitosanitarioTabContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    // Fusarium Card
                     FusariumCard(phyto = phyto)
                 }
-
                 item {
-                    // Pest Breakdown Card
                     PestBreakdownCard(plagas = phyto.plagas)
                 }
-
                 item {
-                    // Root system breakdown
                     RootSystemCard(roots = phyto.sistemasRadiculares)
                 }
             }
@@ -673,23 +789,13 @@ fun FusariumCard(phyto: PhytosanitaryAnalytics) {
 
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(cardColor.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Coronavirus, contentDescription = null, tint = cardColor, modifier = Modifier.size(28.dp))
-            }
-            Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text("Incidencia de Fusarium", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
                 Text(
@@ -711,16 +817,16 @@ fun FusariumCard(phyto: PhytosanitaryAnalytics) {
 fun PestBreakdownCard(plagas: PestBreakdown) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 "Detección de Plagas y Novedades",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             val pestList = listOf(
                 "Sinfílido" to plagas.sinfilido,
@@ -753,13 +859,6 @@ fun PestItem(name: String, count: Int, modifier: Modifier = Modifier) {
         modifier = modifier.padding(end = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(if (hasPest) AgroDanger else AgroAccent)
-        )
-        Spacer(modifier = Modifier.width(6.dp))
         Text(name, style = MaterialTheme.typography.bodySmall, color = AgroTextMuted)
         Spacer(modifier = Modifier.weight(1f))
         Text(
@@ -774,10 +873,10 @@ fun PestItem(name: String, count: Int, modifier: Modifier = Modifier) {
 fun RootSystemCard(roots: List<RootSystemEntry>) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 "Sistema Radicular",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -822,10 +921,10 @@ fun DetalleBloqueTabContent(
                     val agro = summary.agronomico
                     Card(
                         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text(
                                 "Ficha Agronómica - ${summary.bloque}",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -873,7 +972,7 @@ fun BlockSelectorHeader(
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = AgroCardBg),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -916,28 +1015,6 @@ fun ServerUrlDialog(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Direct Mode Option
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = if (useDirect) AgroAccent.copy(alpha = 0.2f) else AgroCardBg),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { useDirect = true }
-                        .border(
-                            width = if (useDirect) 2.dp else 0.dp,
-                            color = if (useDirect) AgroAccent else Color.Transparent,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("🌐 Conexión Directa AWS RDS (Global)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
-                        Text("Funciona desde CUALQUIER lugar (4G/5G/WiFi) sin necesidad de tener un servidor encendido.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // API Server Option
                 Card(
                     colors = CardDefaults.cardColors(containerColor = if (!useDirect) AgroAccent.copy(alpha = 0.2f) else AgroCardBg),
                     shape = RoundedCornerShape(8.dp),
@@ -951,8 +1028,8 @@ fun ServerUrlDialog(
                         )
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
-                        Text("⚡ Servidor API REST (Python FastAPI)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
-                        Text("Conexión mediante API local, Ngrok o servidor en la nube.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                        Text("Servidor API REST (interno.control.agricolaguapa.com)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                        Text("Conexión oficial de producción.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
                         if (!useDirect) {
                             Spacer(modifier = Modifier.height(6.dp))
                             OutlinedTextField(
@@ -966,6 +1043,26 @@ fun ServerUrlDialog(
                                 )
                             )
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = if (useDirect) AgroAccent.copy(alpha = 0.2f) else AgroCardBg),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { useDirect = true }
+                        .border(
+                            width = if (useDirect) 2.dp else 0.dp,
+                            color = if (useDirect) AgroAccent else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("Conexión Directa AWS RDS (Global)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                        Text("Conexión directa por JDBC a la base de datos PostgreSQL.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
                     }
                 }
             }

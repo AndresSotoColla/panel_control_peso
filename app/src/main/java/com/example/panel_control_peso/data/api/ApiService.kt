@@ -13,7 +13,18 @@ interface ApiService {
     @GET("api/bloques_sin_forzar")
     suspend fun getUnforcedBlocks(
         @Query("search") search: String? = null,
-        @Query("limit") limit: Int = 100
+        @Query("grupo_siembra") grupoSiembra: String? = null,
+        @Query("ultimo_mes") ultimoMes: Boolean? = null,
+        @Query("limit") limit: Int = 150
+    ): List<UnforcedBlock>
+
+    @GET("api/bloques_forzados")
+    suspend fun getForcedBlocks(
+        @Query("search") search: String? = null,
+        @Query("grupo_siembra") grupoSiembra: String? = null,
+        @Query("fecha_inicio") fechaInicio: String? = null,
+        @Query("fecha_fin") fechaFin: String? = null,
+        @Query("limit") limit: Int = 150
     ): List<UnforcedBlock>
 
     @GET("api/analitica_peso_bloque/{bloque}")

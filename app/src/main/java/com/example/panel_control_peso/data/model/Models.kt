@@ -6,7 +6,7 @@ data class GlobalKpis(
     @SerializedName("total_bloques_sin_forzar") val totalBloquesSinForzar: Int = 0,
     @SerializedName("area_total_sin_forzar") val areaTotalSinForzar: Double = 0.0,
     @SerializedName("poblacion_total_sin_forzar") val poblacionTotalSinForzar: Long = 0,
-    @SerializedName("forzamiento_urgente") val forzamientoUrgente: Int = 0,
+    @SerializedName("induccion_ultimo_mes") val induccionUltimoMes: Int = 0,
     @SerializedName("total_bloques_muestreados") val totalBloquesMuestreados: Int = 0
 )
 

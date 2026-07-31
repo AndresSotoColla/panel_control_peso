@@ -28,7 +28,6 @@ class DirectDbRepository {
         props.setProperty("connectTimeout", "10")
         props.setProperty("socketTimeout", "15")
         
-        // AWS RDS SSL configuration for Android
         props.setProperty("ssl", "true")
         props.setProperty("sslmode", "prefer")
         props.setProperty("sslfactory", "org.postgresql.ssl.NonValidatingFactory")
@@ -58,16 +57,17 @@ class DirectDbRepository {
                 }
 
                 val stmt2 = conn.prepareStatement("""
-                    SELECT COUNT(*) as forzamiento_urgente
+                    SELECT COUNT(*) as induccion_ultimo_mes
                     FROM public.blocks_desarrollo
                     WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01'
                       AND finduccion IS NOT NULL
-                      AND finduccion <= (CURRENT_DATE + INTERVAL '30 days');
+                      AND finduccion >= (CURRENT_DATE - INTERVAL '1 month')
+                      AND finduccion <= CURRENT_DATE;
                 """.trimIndent())
                 val rs2 = stmt2.executeQuery()
-                var forzamientoUrgente = 0
+                var induccionUltimoMes = 0
                 if (rs2.next()) {
-                    forzamientoUrgente = rs2.getInt("forzamiento_urgente")
+                    induccionUltimoMes = rs2.getInt("induccion_ultimo_mes")
                 }
 
                 val stmt3 = conn.prepareStatement("""
@@ -85,7 +85,7 @@ class DirectDbRepository {
                         totalBloquesSinForzar = totalSinForzar,
                         areaTotalSinForzar = areaTotal,
                         poblacionTotalSinForzar = poblacionTotal,
-                        forzamientoUrgente = forzamientoUrgente,
+                        induccionUltimoMes = induccionUltimoMes,
                         totalBloquesMuestreados = totalMuestreados
                     )
                 )
@@ -95,7 +95,7 @@ class DirectDbRepository {
         }
     }
 
-    suspend fun getUnforcedBlocks(search: String? = null): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
+    suspend fun getUnforcedBlocks(search: String? = null, grupoSiembra: String? = null, ultimoMes: Boolean = false): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
         try {
             getConnection().use { conn ->
                 var sql = """
@@ -107,16 +107,27 @@ class DirectDbRepository {
                     WHERE grupo_forza IS NULL AND fecha_siembra > '2025-01-01'
                 """.trimIndent()
 
+                val paramList = mutableListOf<String>()
                 if (!search.isNull_or_empty()) {
-                    sql += " AND (bloque ILIKE ? OR descripcion ILIKE ?)"
+                    sql += " AND (bloque ILIKE ? OR descripcion ILIKE ? OR grupo_siembra ILIKE ?)"
+                    paramList.add("%$search%")
+                    paramList.add("%$search%")
+                    paramList.add("%$search%")
                 }
-                sql += " ORDER BY finduccion ASC NULLS LAST LIMIT 100;"
+
+                if (!grupoSiembra.isNull_or_empty()) {
+                    sql += " AND grupo_siembra ILIKE ?"
+                    paramList.add("%$grupoSiembra%")
+                }
+
+                if (ultimoMes) {
+                    sql += " AND finduccion IS NOT NULL AND finduccion >= (CURRENT_DATE - INTERVAL '1 month') AND finduccion <= CURRENT_DATE"
+                }
+
+                sql += " ORDER BY finduccion ASC NULLS LAST, fecha_siembra ASC LIMIT 150;"
 
                 val stmt = conn.prepareStatement(sql)
-                if (!search.isNull_or_empty()) {
-                    stmt.setString(1, "%$search%")
-                    stmt.setString(2, "%$search%")
-                }
+                paramList.forEachIndexed { idx, p -> stmt.setString(idx + 1, p) }
 
                 val rs = stmt.executeQuery()
                 val list = mutableListOf<UnforcedBlock>()
@@ -125,16 +136,10 @@ class DirectDbRepository {
                 while (rs.next()) {
                     val finduccionDate = rs.getDate("finduccion")
                     var diasHasta: Int? = null
-                    var catForzamiento: String? = "SIN_FECHA"
 
                     if (finduccionDate != null) {
                         val diffMs = finduccionDate.time - todayMs
                         diasHasta = (diffMs / (1000 * 60 * 60 * 24)).toInt()
-                        catForzamiento = when {
-                            diasHasta <= 15 -> "URGENTE"
-                            diasHasta <= 45 -> "PROXIMO"
-                            else -> "NORMAL"
-                        }
                     }
 
                     list.add(
@@ -157,7 +162,7 @@ class DirectDbRepository {
                             diasPreforza = rs.getDouble("dias_preforza"),
                             diasPosforza = rs.getDouble("dias_posforza"),
                             diasHastaInduccion = diasHasta,
-                            categoriaForzamiento = catForzamiento
+                            categoriaForzamiento = if (ultimoMes) "ULTIMO_MES" else "PROGRAMADO"
                         )
                     )
                 }
@@ -165,6 +170,72 @@ class DirectDbRepository {
             }
         } catch (e: Throwable) {
             Result.failure(Exception(e.message ?: "Error al consultar bloques", e))
+        }
+    }
+
+    suspend fun getForcedBlocks(search: String? = null, grupoSiembra: String? = null, startDate: String? = null, endDate: String? = null): Result<List<UnforcedBlock>> = withContext(Dispatchers.IO) {
+        try {
+            getConnection().use { conn ->
+                var sql = """
+                    SELECT 
+                        blocknumber, descripcion, desarrollo, bloque, poblacion, area, drenajes, 
+                        grupo_siembra, fecha_siembra, grupo_forza, finduccion, grupo_semillero, 
+                        mediana_fecha_cosecha, kilos_cosechados, frutas, dias_preforza, dias_posforza
+                    FROM public.blocks_desarrollo
+                    WHERE grupo_forza IS NOT NULL
+                """.trimIndent()
+
+                val paramList = mutableListOf<String>()
+                if (!search.isNull_or_empty()) {
+                    sql += " AND (bloque ILIKE ? OR descripcion ILIKE ? OR grupo_siembra ILIKE ? OR grupo_forza ILIKE ?)"
+                    paramList.add("%$search%")
+                    paramList.add("%$search%")
+                    paramList.add("%$search%")
+                    paramList.add("%$search%")
+                }
+
+                if (!grupoSiembra.isNull_or_empty()) {
+                    sql += " AND grupo_siembra ILIKE ?"
+                    paramList.add("%$grupoSiembra%")
+                }
+
+                sql += " ORDER BY finduccion DESC NULLS LAST, fecha_siembra DESC LIMIT 150;"
+
+                val stmt = conn.prepareStatement(sql)
+                paramList.forEachIndexed { idx, p -> stmt.setString(idx + 1, p) }
+
+                val rs = stmt.executeQuery()
+                val list = mutableListOf<UnforcedBlock>()
+
+                while (rs.next()) {
+                    list.add(
+                        UnforcedBlock(
+                            blocknumber = rs.getString("blocknumber"),
+                            descripcion = rs.getString("descripcion"),
+                            desarrollo = rs.getString("desarrollo"),
+                            bloque = rs.getString("bloque") ?: "",
+                            poblacion = rs.getLong("poblacion"),
+                            area = rs.getDouble("area"),
+                            drenajes = rs.getDouble("drenajes"),
+                            grupoSiembra = rs.getString("grupo_siembra"),
+                            fechaSiembra = rs.getDate("fecha_siembra")?.toString(),
+                            grupoForza = rs.getString("grupo_forza"),
+                            finduccion = rs.getDate("finduccion")?.toString(),
+                            grupoSemillero = rs.getString("grupo_semillero"),
+                            medianaFechaCosecha = rs.getDate("mediana_fecha_cosecha")?.toString(),
+                            kilosCosechados = rs.getDouble("kilos_cosechados"),
+                            frutas = rs.getDouble("frutas"),
+                            diasPreforza = rs.getDouble("dias_preforza"),
+                            diasPosforza = rs.getDouble("dias_posforza"),
+                            diasHastaInduccion = null,
+                            categoriaForzamiento = "FORZADO"
+                        )
+                    )
+                }
+                Result.success(list)
+            }
+        } catch (e: Throwable) {
+            Result.failure(Exception(e.message ?: "Error al consultar grupos forzados", e))
         }
     }
 
