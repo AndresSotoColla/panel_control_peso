@@ -23,6 +23,7 @@ data class DashboardUiState(
     val selectedBlockName: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val isDirectDbMode: Boolean = true,
     val currentServerUrl: String = RetrofitClient.BASE_URL
 )
 
@@ -34,12 +35,23 @@ class DashboardViewModel(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
+        repository.useDirectDbMode = _uiState.value.isDirectDbMode
+        loadDashboardData()
+    }
+
+    fun toggleConnectionMode(useDirectDb: Boolean) {
+        repository.useDirectDbMode = useDirectDb
+        _uiState.value = _uiState.value.copy(isDirectDbMode = useDirectDb)
         loadDashboardData()
     }
 
     fun setServerUrl(newUrl: String) {
         RetrofitClient.setCustomBaseUrl(newUrl)
-        _uiState.value = _uiState.value.copy(currentServerUrl = RetrofitClient.BASE_URL)
+        repository.useDirectDbMode = false
+        _uiState.value = _uiState.value.copy(
+            currentServerUrl = RetrofitClient.BASE_URL,
+            isDirectDbMode = false
+        )
         loadDashboardData()
     }
 
@@ -59,7 +71,8 @@ class DashboardViewModel(
 
             var errorMsg: String? = null
             if (kpisResult.isFailure && blocksResult.isFailure) {
-                errorMsg = "Error al conectar con la API (${kpisResult.exceptionOrNull()?.message})"
+                val err = kpisResult.exceptionOrNull()?.message ?: blocksResult.exceptionOrNull()?.message
+                errorMsg = "Error de conexión ($err)"
             }
 
             _uiState.value = _uiState.value.copy(

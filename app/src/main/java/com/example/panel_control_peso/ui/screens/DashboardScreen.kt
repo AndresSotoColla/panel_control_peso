@@ -55,7 +55,7 @@ fun DashboardScreen(
                             color = Color.White
                         )
                         Text(
-                            "Monitoreo Agrícola AWS RDS",
+                            if (state.isDirectDbMode) "🌐 Conexión Directa AWS RDS (Global 4G/5G/WiFi)" else "⚡ Servidor API REST",
                             style = MaterialTheme.typography.labelSmall,
                             color = AgroAccent
                         )
@@ -170,8 +170,13 @@ fun DashboardScreen(
             if (showServerDialog) {
                 ServerUrlDialog(
                     currentUrl = state.currentServerUrl,
+                    isDirectDbMode = state.isDirectDbMode,
                     onDismiss = { showServerDialog = false },
-                    onConfirm = { newUrl ->
+                    onToggleDirectDb = { useDirect ->
+                        viewModel.toggleConnectionMode(useDirect)
+                        showServerDialog = false
+                    },
+                    onConfirmApiUrl = { newUrl ->
                         viewModel.setServerUrl(newUrl)
                         showServerDialog = false
                     }
@@ -891,42 +896,92 @@ fun BlockSelectorHeader(
 @Composable
 fun ServerUrlDialog(
     currentUrl: String,
+    isDirectDbMode: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onToggleDirectDb: (Boolean) -> Unit,
+    onConfirmApiUrl: (String) -> Unit
 ) {
     var text by remember { mutableStateOf(currentUrl) }
+    var useDirect by remember { mutableStateOf(isDirectDbMode) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Configurar Servidor API", color = Color.White) },
+        title = { Text("Modo de Conexión (Global)", color = Color.White) },
         text = {
             Column {
                 Text(
-                    "Ingresa la IP o URL donde está corriendo tu backend Python FastAPI:",
+                    "Selecciona el modo de consulta a los datos:",
                     style = MaterialTheme.typography.bodySmall,
                     color = AgroTextMuted
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    )
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Ejemplos:\n• Simulador Android: http://10.0.2.2:8000/\n• Celular en la misma red WiFi: http://192.168.1.50:8000/",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AgroAccent
-                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Direct Mode Option
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = if (useDirect) AgroAccent.copy(alpha = 0.2f) else AgroCardBg),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { useDirect = true }
+                        .border(
+                            width = if (useDirect) 2.dp else 0.dp,
+                            color = if (useDirect) AgroAccent else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("🌐 Conexión Directa AWS RDS (Global)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                        Text("Funciona desde CUALQUIER lugar (4G/5G/WiFi) sin necesidad de tener un servidor encendido.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // API Server Option
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = if (!useDirect) AgroAccent.copy(alpha = 0.2f) else AgroCardBg),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { useDirect = false }
+                        .border(
+                            width = if (!useDirect) 2.dp else 0.dp,
+                            color = if (!useDirect) AgroAccent else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("⚡ Servidor API REST (Python FastAPI)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                        Text("Conexión mediante API local, Ngrok o servidor en la nube.", style = MaterialTheme.typography.labelSmall, color = AgroTextMuted)
+                        if (!useDirect) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = text,
+                                onValueChange = { text = it },
+                                singleLine = true,
+                                label = { Text("URL de la API", color = AgroTextMuted) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(text) }, colors = ButtonDefaults.buttonColors(containerColor = AgroAccent)) {
-                Text("Guardar y Probar", color = Color.Black)
+            Button(
+                onClick = {
+                    if (useDirect) {
+                        onToggleDirectDb(true)
+                    } else {
+                        onConfirmApiUrl(text)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = AgroAccent)
+            ) {
+                Text("Guardar Modo", color = Color.Black)
             }
         },
         dismissButton = {

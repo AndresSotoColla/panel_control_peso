@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.panel_control_peso"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -56,6 +56,8 @@ dependencies {
     // ViewModel & Lifecycle for Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    // PostgreSQL JDBC Driver for Direct Connection Mode
+    implementation("org.postgresql:postgresql:42.7.2")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
